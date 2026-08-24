@@ -1,0 +1,28 @@
+# Model artifacts (ใหญ่เกินสำหรับ git)
+*.pt
+*.bin
+*.onnx
+*.onnx.data
+*.safetensors
+checkpoints/
+data/*.jsonl
+data/tokenizer.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+guppy-env/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
