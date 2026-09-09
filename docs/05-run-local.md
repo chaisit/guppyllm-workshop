@@ -56,6 +56,8 @@ ls -lh checkpoints/ data/
 
 ## 5.2 วิธีเร็วที่สุด: ใช้ CLI ในตัว repo
 
+repo GuppyLM มี CLI สำเร็จรูปให้อยู่แล้ว — เรียกผ่าน `python -m guppylm chat` ได้ทันทีโดยไม่ต้องเขียนโค้ดเอง
+
 ```bash
 # โหมด interactive
 python -m guppylm chat
@@ -64,12 +66,14 @@ python -m guppylm chat
 python -m guppylm chat --prompt "tell me a joke"
 ```
 
-**ค่า default ของ CLI:**
+**ค่า default ของ CLI ในตัว repo (`python -m guppylm chat`):**
 | Argument | ค่า default |
 |---|---|
 | `--checkpoint` | `checkpoints/best_model.pt` |
 | `--tokenizer` | `data/tokenizer.json` |
 | `--device` | `cpu` |
+
+> 📌 **หมายเหตุ:** หัวข้อ 5.2 นี้ใช้ CLI **ในตัว repo** (`python -m guppylm chat`) ซึ่งรันได้เลย ส่วนหัวข้อ 5.3 เราจะเขียนสคริปต์ `chat.py` **ของเราเอง** เพื่อเรียนรู้การทำ device-agnostic (เลือก cuda/mps/cpu อัตโนมัติ) — ทั้งสองแบบเรียก `GuppyInference` เหมือนกัน ต่างที่ CLI ในตัว repo ตั้ง device default เป็น `cpu` ส่วน `chat.py` ของเราจะเลือก device ที่ดีที่สุดให้อัตโนมัติ
 
 **✅ ผลลัพธ์ที่ควรเห็น:**
 ```

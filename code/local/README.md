@@ -2,6 +2,9 @@
 
 Scripts สำหรับรัน GuppyLM บนเครื่องตัวเอง หลังจากดาวน์โหลด checkpoint จาก Colab แล้ว
 
+> 📌 **หมายเหตุ:** repo GuppyLM มี CLI ในตัวอยู่แล้ว (`python -m guppylm chat`) ที่รันได้ทันที
+> สคริปต์ในโฟลเดอร์นี้ (`chat.py`, `app.py`, `benchmark.py`) เป็นเวอร์ชันที่**เราเขียนเองในเวิร์กช็อป** โดย wrap รอบ `GuppyInference` เพื่อเรียนรู้การทำ device-agnostic, การสร้าง Web UI และการวัด benchmark — ทั้งสองแบบใช้ engine ตัวเดียวกัน
+
 ## การติดตั้ง
 
 ```bash

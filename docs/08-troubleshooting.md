@@ -125,7 +125,7 @@ for f in sorted(os.listdir(EXPORT_DIR)):
 |---|---|
 | `pytorch_model.bin` | ~35 MB (≈33 MiB) |
 | `tokenizer.json` | ~161 kB |
-| `config.json` | ~322 bytes |
+| `config.json` | &lt;1 kB (ราวไม่กี่ร้อย bytes) |
 
 **ถ้าไฟล์เล็กผิดปกติ:** แสดงว่า save ไม่สำเร็จ ให้ export ใหม่
 

@@ -105,6 +105,8 @@ print(f"FP32: {os.path.getsize('fp32.pt')/1024/1024:.2f} MB")
 print(f"INT8: {os.path.getsize('int8.pt')/1024/1024:.2f} MB")
 ```
 
+> 📌 **หมายเหตุเรื่อง API:** เอกสารนี้ pin `torch==2.6.0` ซึ่ง `torch.quantization.quantize_dynamic` ยังใช้ได้ปกติ ใน PyTorch รุ่นใหม่กว่า API หลักถูกย้ายไปที่ `torch.ao.quantization.quantize_dynamic` (ตัวเดิมยังเป็น alias ให้อยู่ แต่บางเวอร์ชันอาจขึ้น deprecation warning) — ถ้านักศึกษาใช้ PyTorch เวอร์ชันใหม่กว่าและเจอ warning ให้เปลี่ยนไปเรียก `torch.ao.quantization.quantize_dynamic` แทน (arguments เหมือนกันทุกประการ)
+
 ### ผลที่คาดหวัง
 
 ตาม PyTorch documentation:

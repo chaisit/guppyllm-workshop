@@ -159,7 +159,7 @@ GuppyLM เป็นโปรเจกต์เพื่อการศึกษ
 
 ## 🚀 การนำไปใช้บน GitHub / GitLab
 
-เอกสารชุดนี้เขียนเป็น Markdown ล้วน ใช้ **Mermaid** สำหรับ diagram ทั้งหมด (48 diagram) จึงเปิดดูได้โดยตรงบน GitHub และ GitLab **โดยไม่ต้องมี build step หรือ static site generator**
+เอกสารชุดนี้เขียนเป็น Markdown ล้วน ใช้ **Mermaid** สำหรับ diagram ทั้งหมด (47 diagram) จึงเปิดดูได้โดยตรงบน GitHub และ GitLab **โดยไม่ต้องมี build step หรือ static site generator**
 
 ```bash
 git init
@@ -178,7 +178,7 @@ git push -u origin main
 
 | ประเภท diagram | จำนวน | ต้องการ Mermaid |
 |---|---|---|
-| `flowchart` | 43 | ทุกเวอร์ชัน ✅ |
+| `flowchart` | 42 | ทุกเวอร์ชัน ✅ |
 | `gantt` | 2 | ทุกเวอร์ชัน ✅ |
 | `xychart-beta` | 2 | ≥ 10.3 |
 | `timeline` | 1 | ≥ 9.4 |

@@ -22,7 +22,7 @@ flowchart TD
     subgraph COLAB["☁️ บน Colab"]
         C1["best_model.pt<br/>~35 MB<br/>model weights"]
         C2["tokenizer.json<br/>~161 kB<br/>BPE vocab"]
-        C3["config.json<br/>~322 bytes<br/>hyperparameters"]
+        C3["config.json<br/>&lt;1 kB<br/>hyperparameters"]
     end
 
     COLAB --> Q{"เลือกวิธีนำออก"}
@@ -47,7 +47,9 @@ flowchart TD
 |---|---|---|---|
 | `best_model.pt` / `pytorch_model.bin` | น้ำหนักโมเดล (FP32) | **~35 MB** | ✅ ต้องมี |
 | `tokenizer.json` | BPE tokenizer 4,096 vocab | **~161 kB** | ✅ ต้องมี |
-| `config.json` | hyperparameters | **~322 bytes** | ✅ ต้องมี |
+| `config.json` | hyperparameters | **&lt;1 kB** | ✅ ต้องมี |
+
+> 💡 **ขนาด `config.json`** ขึ้นกับจำนวน field ที่เขียนลงไป (ราวไม่กี่ร้อย bytes) — ถ้า dump เฉพาะ `GuppyConfig` จะเล็กกว่ากรณีที่รวม field ของ `TrainConfig` ด้วย ตัวเลขจึงต่างกันได้เล็กน้อยตาม config object ที่บันทึก
 
 **ทำไม 35 MB?** 8.7M parameters × 4 bytes (FP32) ≈ 34.9 MB
 (LM head weight-tied กับ embedding จึงไม่นับซ้ำ)
@@ -318,7 +320,7 @@ flowchart TD
 **Checklist สำหรับนักศึกษา:**
 - [ ] `pytorch_model.bin` (หรือ `best_model.pt`) — ~35 MB
 - [ ] `tokenizer.json` — ~161 kB
-- [ ] `config.json` — ~322 bytes
+- [ ] `config.json` — &lt;1 kB
 - [ ] ดาวน์โหลด ZIP ลงเครื่องแล้ว
 - [ ] แตก ZIP แล้วเห็นครบ 3 ไฟล์
 - [ ] (สำรอง) ไฟล์ยังอยู่ใน Google Drive
