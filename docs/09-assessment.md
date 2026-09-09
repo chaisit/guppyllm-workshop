@@ -14,7 +14,7 @@ flowchart LR
     A --> A4["UI/Optimize 15"]
     A --> A5["ความเข้าใจ 15"]
 
-    B["📝 Assignment<br/>ต่อยอด"] --> B1["เลือก 1 จาก 5 หัวข้อ"]
+    B["📝 Assignment<br/>ต่อยอด"] --> B1["เลือก 1 จาก 6 หัวข้อ"]
 
     style A fill:#e3f2fd,stroke:#1976d2
     style B fill:#e8f5e9,stroke:#388e3c
@@ -181,6 +181,55 @@ flowchart TD
 **เกณฑ์:** ความถูกต้องทางเทคนิค 50% · ความชัดเจนของการอธิบาย 30% · คุณภาพ diagram 20%
 
 > ⚠️ ห้ามคัดลอกจากเอกสารนี้โดยตรง — ต้องเขียนใหม่ด้วยความเข้าใจของตัวเอง
+
+---
+
+### หัวข้อ 6 — Continue-Training / Fine-tuning 🔁
+
+> 🧭 **ที่มาของโจทย์:** เวิร์กช็อปหลักสอน train from scratch เท่านั้น หัวข้อนี้พาต่อยอดไปอีกขั้น — เอา checkpoint ที่เทรนไว้แล้ว **มาเทรนต่อ** (continue pre-training) หรือ **ปรับพฤติกรรม** (fine-tuning) โดยไม่เริ่มจากศูนย์ ซึ่งตรงกับวิธีที่อุตสาหกรรมนำ base model มาต่อยอด
+
+**⚠️ สิ่งที่ต้องรู้ก่อน:** `guppylm.train` **ไม่มี** flag สำหรับ resume/continue ในตัว — ฟังก์ชัน `train()` สร้างโมเดล weights สุ่มใหม่ทุกครั้ง และ checkpoint ที่ save ไว้ (`best_model.pt`) เก็บแค่ `model_state_dict` **ไม่มี** `optimizer_state_dict` ดังนั้นนักศึกษาต้อง**เขียน training script ของตัวเอง** โดยโหลด weights กลับเข้าโมเดลก่อนเข้า loop — นี่คือหัวใจของโจทย์
+
+**สิ่งที่ต้องทำ:**
+
+1. เตรียม dataset ใหม่ (เช่น เพิ่มโดเมน "ปลาน้ำเค็ม" สำหรับ continue pre-training หรือชุด instruction/response แบบใหม่สำหรับ SFT) — ต้องใช้ **tokenizer ตัวเดิม** เพื่อไม่ให้ vocab/embedding mismatch
+2. เขียนสคริปต์ที่โหลด `model_state_dict` จาก checkpoint เดิมเข้าโมเดล แล้วเทรนต่อ:
+
+```python
+import torch
+from guppylm.config import GuppyConfig
+from guppylm.model import GuppyLM
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# 1) โหลด checkpoint เดิม (weights-only) — เหมือน pattern ใน GuppyInference
+ckpt = torch.load("checkpoints/best_model.pt",
+                  map_location=device, weights_only=False)
+mc = GuppyConfig(**{k: v for k, v in ckpt["config"].items()
+                    if k in {f.name for f in GuppyConfig.__dataclass_fields__.values()}})
+
+model = GuppyLM(mc).to(device)
+model.load_state_dict(ckpt["model_state_dict"])   # ← เริ่มจาก weights เดิม ไม่ใช่ค่าสุ่ม
+model.train()
+
+# 2) ใช้ learning rate ต่ำลงเพื่อกัน catastrophic forgetting
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-5, weight_decay=0.1)
+
+# 3) เทรนต่อบน dataset ใหม่ (ลด max_steps + warmup ให้สั้นลง) แล้ว save checkpoint ใหม่
+```
+
+3. เทรนต่อ → export → รันบนเครื่อง → เปรียบเทียบพฤติกรรมกับโมเดลเดิม
+
+**สิ่งที่ต้องส่ง:**
+- สคริปต์ continue-training ที่เขียนเอง
+- ตารางเปรียบเทียบ **before / after** (loss เริ่มต้น, คุณภาพคำตอบบนโดเมนใหม่ vs โดเมนเดิม)
+- รายงานสั้น ๆ ตอบ: LR ที่เลือกใช้และเหตุผล, สังเกตเห็น catastrophic forgetting ไหม (โมเดลลืมเรื่องเดิมหรือเปล่า), และทำไม loss เริ่มต้นจึง**ไม่ได้เริ่มที่ ~8.3** เหมือนตอน train from scratch
+
+**เกณฑ์:** ความถูกต้องของ continue-training 40% · การวิเคราะห์ before/after 35% · คุณภาพรายงาน 25%
+
+> 💡 **ต่อยอดสำหรับคนอยากลึก (ไม่บังคับ):** ทำ resume ที่สมบูรณ์ — แก้ `train.py` ต้นทางให้ save `optimizer.state_dict()` และ `step` เพิ่ม แล้วอธิบายว่าทำไมการ resume ที่แท้จริงต้องกู้มากกว่าแค่ weights (momentum ของ AdamW + ตำแหน่งใน LR schedule)
+
+> ⚠️ **ยังไม่แนะนำ LoRA/PEFT** สำหรับโจทย์นี้ — โมเดลแค่ 8.7M การ full fine-tune ทั้งตัวยังเร็วและเข้าใจง่ายกว่า ตรงกับหลัก "keep it minimal" ของคอร์ส
 
 ---
 
