@@ -274,18 +274,33 @@ flowchart TD
 
 ดังนั้นถ้าเราสั่ง `!python -m guppylm.train` (เครื่องหมาย `!` = รันเป็น subprocess) ตัวแปร `CKPT_DIR` ที่เราตั้งในโน้ตบุ๊กจะอยู่ **คนละ process** จึงไม่มีผลกับ subprocess เลย
 
+### ⚠️ กับดักที่ 2: `data/train.jsonl` not found
+
+`train.py` อ่าน data ด้วย **relative path** — `os.path.join("data", "train.jsonl")` เทียบกับ **working directory ปัจจุบัน** และ `prepare()` (Module 02) ก็เขียน data ลง `data/` เทียบกับ cwd เช่นกัน
+
+ถ้า cwd ตอนรัน `prepare()` กับตอนรัน `train()` **ไม่ใช่ที่เดียวกัน** จะเจอ:
+```
+FileNotFoundError: [Errno 2] No such file or directory: 'data/train.jsonl'
+```
+
+**ทางแก้ที่ทนทาน:** ล็อก working directory ให้แน่นอนด้วย `os.chdir(WORKSHOP_DIR)` ก่อนทั้ง `prepare()` และ `train()` — data จะถูกสร้างและอ่านจากที่เดียวกันเสมอ (บน Colab ยังได้ persist `data/` ลง Drive เป็นของแถมด้วย)
+
 ### Cell — ตั้งที่เก็บ checkpoint ให้ถูก แล้วเทรน (in-process)
 
 ```python
-# 1) ตรวจ path ที่กำหนดไว้จาก Module 02
-print("CKPT_DIR =", CKPT_DIR)
-# Colab:  /content/drive/MyDrive/guppylm_workshop/checkpoints
-# local:  <โฟลเดอร์ปัจจุบัน>/guppylm_workshop/checkpoints
-
-# 2) override TrainConfig ที่ train.py ใช้ ให้ output_dir ชี้ไป CKPT_DIR
+import os
 import guppylm.train as gtrain
 from guppylm.config import TrainConfig
 
+# 1) ล็อก working directory ให้ตรงกับตอนรัน prepare() ใน Module 02
+#    (train.py อ่าน data/train.jsonl เทียบกับ cwd — ต้องเป็น WORKSHOP_DIR เดียวกัน)
+os.chdir(WORKSHOP_DIR)
+print("cwd      =", os.getcwd())
+print("CKPT_DIR =", CKPT_DIR)
+assert os.path.exists('data/train.jsonl'), \
+    "ไม่พบ data/train.jsonl — ต้องรัน prepare() ใน Module 02 จาก cwd เดียวกันนี้ก่อน"
+
+# 2) override TrainConfig ที่ train.py ใช้ ให้ output_dir ชี้ไป CKPT_DIR
 _BaseTrainConfig = TrainConfig
 gtrain.TrainConfig = lambda: _BaseTrainConfig(output_dir=CKPT_DIR)
 assert gtrain.TrainConfig().output_dir == CKPT_DIR
@@ -296,6 +311,8 @@ gtrain.train()
 
 > 🔑 **ทำไม override ที่ `gtrain.TrainConfig` ไม่ใช่ `guppylm.config.TrainConfig`?**
 > เพราะ `train.py` เขียน `from .config import TrainConfig` ชื่อ `TrainConfig` จึงถูก bind ไว้ใน namespace ของ `guppylm.train` แล้ว การแทนที่จึงต้องทำที่ `guppylm.train.TrainConfig` เพื่อให้ `train()` หยิบตัวที่เราแก้ไปใช้
+>
+> 📁 **ทำไมต้อง `os.chdir(WORKSHOP_DIR)`?** เพราะทั้ง `prepare()` และ `train()` ใช้ `data/` แบบ relative ต่อ cwd การล็อก cwd ให้เป็นโฟลเดอร์เดียวกันเป็นวิธีที่ตรงและเปราะน้อยที่สุด — ไม่ต้องแก้ hardcoded path ใน `generate_data.py`
 
 **✅ ผลลัพธ์ที่ควรเห็น:**
 ```

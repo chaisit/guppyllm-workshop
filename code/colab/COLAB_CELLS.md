@@ -107,22 +107,28 @@ if IN_COLAB:
 ## Cell 3 — เตรียม Data และ Tokenizer
 
 ```python
+import os
+
+# ⚠️ สำคัญ: ล็อก working directory เป็น WORKSHOP_DIR ก่อนเรียก prepare()
+# generate_dataset ของ repo เขียน data/ แบบ relative ต่อ cwd และ train() ก็อ่าน data/ แบบ relative
+# ต้องเป็น cwd เดียวกันทั้งตอนเตรียม data และตอนเทรน ไม่งั้นเทรนจะเจอ FileNotFoundError
+os.chdir(WORKSHOP_DIR)
+print("cwd =", os.getcwd())
+
 # เรียก prepare() แบบ in-process (ไม่ใช่ !python -m) เพื่อให้เป็นแนวเดียวกับตอนเทรน
 from guppylm.prepare_data import prepare
-
-# หมายเหตุ: generate_dataset ของ repo เขียนไฟล์ลง ./data (relative to cwd) เสมอ
-# เราจึงปล่อยให้ data อยู่ที่ ./data — สร้างใหม่ได้เร็ว ไม่ต้อง persist ลง Drive
-prepare()   # สร้าง data/train.jsonl, data/eval.jsonl, data/tokenizer.json
+prepare()   # สร้าง data/train.jsonl, data/eval.jsonl, data/tokenizer.json (ใต้ WORKSHOP_DIR)
 
 # ตรวจผลลัพธ์
-import os
 for f in sorted(os.listdir('data')):
     size = os.path.getsize(f'data/{f}')
     print(f"{f:25} {size/1024:>10,.1f} KB")
+assert os.path.exists('data/train.jsonl') and os.path.exists('data/tokenizer.json')
 ```
 
 > 📌 **สังเกตชื่อไฟล์:** repo สร้าง `train.jsonl` และ **`eval.jsonl`** (ไม่ใช่ `test.jsonl`) — `train.py` โหลด `data/eval.jsonl` มาใช้วัด eval loss
 > 🔤 **tokenizer ที่ได้:** BPE แบบ **ByteLevel** vocab 4,096 special tokens 3 ตัว (`<pad>`, `<|im_start|>`, `<|im_end|>`) ตามที่ repo กำหนดจริง
+> 📁 **ทำไม `os.chdir(WORKSHOP_DIR)`?** ทั้ง `prepare()` และ `train()` ใช้ path `data/` แบบ relative ต่อ cwd การล็อก cwd ไว้ที่เดียวกันตั้งแต่ตอนนี้กัน `FileNotFoundError: data/train.jsonl` ตอนเทรน (บน Colab ยังได้ persist `data/` ลง Drive ด้วย)
 
 ### Cell 3b — สำรวจ dataset (ถ้าต้องการ)
 
@@ -195,11 +201,17 @@ del m
 > ทางแก้ที่ถูกต้อง: รัน `train()` **ในโปรเซสเดียวกับโน้ตบุ๊ก** แล้ว override `TrainConfig` ให้ `output_dir` ชี้ไป `CKPT_DIR` ก่อนเรียก
 
 ```python
+import os
 import guppylm.train as gtrain
 from guppylm.config import TrainConfig
 
+# ล็อก cwd ให้ตรงกับตอนรัน prepare() (Cell 3) — train.py อ่าน data/ แบบ relative ต่อ cwd
+os.chdir(WORKSHOP_DIR)
+assert os.path.exists('data/train.jsonl'), \
+    "ไม่พบ data/train.jsonl — ต้องรัน Cell 3 (prepare) จาก cwd เดียวกันนี้ก่อน"
+
 # แทนที่ TrainConfig ที่ train.py ใช้ ด้วยเวอร์ชันที่ output_dir ชี้ไป CKPT_DIR
-# (data_dir คง "data" ตามเดิม เพราะ prepare() เขียน data ลง ./data)
+# (data_dir คง "data" ตามเดิม — ตอนนี้ cwd = WORKSHOP_DIR จึงหมายถึง WORKSHOP_DIR/data)
 _BaseTrainConfig = TrainConfig
 def _patched_train_config():
     return _BaseTrainConfig(output_dir=CKPT_DIR)
@@ -207,6 +219,7 @@ def _patched_train_config():
 gtrain.TrainConfig = _patched_train_config
 
 # ยืนยันว่า override ติดจริง
+print("cwd      =", os.getcwd())
 print("output_dir ที่จะใช้จริง:", gtrain.TrainConfig().output_dir)
 assert gtrain.TrainConfig().output_dir == CKPT_DIR
 ```

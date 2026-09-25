@@ -338,8 +338,19 @@ flowchart LR
 แทนที่จะทำทีละขั้นเอง สามารถใช้ script สำเร็จรูป โดยเรียกแบบ **in-process** (แนวเดียวกับตอนเทรนใน Module 03):
 
 ```python
+import os
+
+# ⚠️ สำคัญ: ล็อก working directory ให้เป็น WORKSHOP_DIR เดียวกับที่ Module 03 จะเทรน
+# เพราะ prepare() เขียน data/ และ train() อ่าน data/ แบบ relative ต่อ cwd ทั้งคู่
+os.chdir(WORKSHOP_DIR)
+print("cwd =", os.getcwd())
+
 from guppylm.prepare_data import prepare
 prepare()
+
+# ตรวจว่าไฟล์ถูกสร้างใน WORKSHOP_DIR/data จริง
+assert os.path.exists('data/train.jsonl') and os.path.exists('data/tokenizer.json')
+print("✅ data พร้อมแล้วใน", os.path.join(WORKSHOP_DIR, 'data'))
 ```
 
 **สิ่งที่ `prepare()` ทำ:**
@@ -348,6 +359,7 @@ prepare()
 3. เทรน ByteLevel BPE tokenizer (vocab 4,096, special tokens 3 ตัว) → `data/tokenizer.json`
 
 > 💡 เรียก `prepare()` ตรง ๆ แทน `!python -m guppylm.prepare_data` เพื่อให้ทำงานในโปรเซสเดียวกับโน้ตบุ๊ก สอดคล้องกับวิธีรัน `train()` ใน Module 03
+> 📁 **ทำไมต้อง `os.chdir(WORKSHOP_DIR)`?** ทั้ง `prepare()` และ `train()` ใช้ path `data/` แบบ relative ต่อ cwd — ถ้า cwd ตอนเตรียม data กับตอนเทรนไม่ตรงกัน จะเจอ `FileNotFoundError: data/train.jsonl` ตอนเทรน การล็อก cwd ไว้ที่ `WORKSHOP_DIR` ตั้งแต่ตอนนี้แก้ปัญหานั้นได้ (บน Colab ยังได้ persist `data/` ลง Drive เป็นของแถม)
 
 ---
 
