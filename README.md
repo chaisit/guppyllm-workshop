@@ -166,12 +166,13 @@ git init
 git add .
 git commit -m "Add GuppyLM workshop materials"
 
-# GitHub
-git remote add origin https://github.com/<user>/guppylm-workshop.git
-# GitLab
-# git remote add origin https://gitlab.com/<user>/guppylm-workshop.git
-
+# remote หลัก (GitLab)
+git remote add origin https://gitlab.com/<user>/guppyllm-workshop.git
 git push -u origin main
+
+# remote เสริม (GitHub, แบบ SSH) — เผยแพร่ควบคู่กันได้
+git remote add github git@github.com:<user>/guppyllm-workshop.git
+git push -u github main
 ```
 
 ### ความเข้ากันได้ของ Mermaid
@@ -194,8 +195,15 @@ GitHub และ GitLab (self-managed เวอร์ชันใหม่) ร�
 
 ## 📄 License
 
-เอกสารการสอนชุดนี้เผยแพร่ภายใต้ **CC BY 4.0**
-GuppyLM ต้นฉบับเป็น **MIT License** © Arman Hossain
+โปรเจกต์นี้ใช้สัญญาอนุญาตแบบ **dual license** แยกตามประเภทเนื้อหา
+
+| ส่วน | สัญญาอนุญาต |
+|---|---|
+| เอกสารการสอน (`README.md`, `docs/`, `instructor/`, ไฟล์ `.md` ทั้งหมด) | **CC BY 4.0** |
+| โค้ด (`code/local/*.py` และโค้ดตัวอย่างอื่น ๆ) | **MIT** — ดู [`LICENSE-CODE`](LICENSE-CODE) |
+
+รายละเอียดฉบับเต็มดูที่ [`LICENSE`](LICENSE)
+GuppyLM ต้นฉบับเป็น **MIT License** © Arman Hossain (แยกต่างหากจากเอกสารชุดนี้)
 
 ---
 

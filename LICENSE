@@ -1,13 +1,29 @@
-Creative Commons Attribution 4.0 International (CC BY 4.0)
+# License / สัญญาอนุญาต
 
-เอกสารประกอบการสอนชุดนี้เผยแพร่ภายใต้สัญญาอนุญาต CC BY 4.0
+โปรเจกต์นี้ใช้สัญญาอนุญาตแบบ **dual license** โดยแยกตามประเภทของเนื้อหา
+
+## เอกสารการสอน (Documentation)
+
+ไฟล์เอกสารทั้งหมด (`README.md`, ทุกไฟล์ใน `docs/`, `code/**/*.md`,
+`instructor/`) เผยแพร่ภายใต้สัญญาอนุญาต
+**Creative Commons Attribution 4.0 International (CC BY 4.0)**
+
 คุณสามารถแบ่งปันและดัดแปลงได้ โดยต้องให้เครดิตแหล่งที่มา
-
 ดูรายละเอียดฉบับเต็มที่: https://creativecommons.org/licenses/by/4.0/
+
+## โค้ด (Source Code)
+
+ไฟล์สคริปต์ Python ทั้งหมด (`code/local/*.py` และโค้ดตัวอย่างอื่น ๆ ในโปรเจกต์นี้)
+เผยแพร่ภายใต้สัญญาอนุญาต **MIT License** — ดูรายละเอียดในไฟล์ [`LICENSE-CODE`](LICENSE-CODE)
+
+> เหตุที่แยกสัญญาอนุญาตของโค้ดออกมา: Creative Commons ไม่แนะนำให้ใช้ CC
+> กับซอฟต์แวร์ เพราะไม่ครอบคลุมเรื่อง patent และ warranty disclaimer สำหรับโค้ด
+> การใช้ MIT กับส่วนโค้ดยังทำให้เข้ากันได้กับ GuppyLM ต้นฉบับด้วย
 
 ---
 
-หมายเหตุ:
+## หมายเหตุ
+
 โปรเจกต์ GuppyLM ต้นฉบับ (https://github.com/arman-bd/guppylm)
 เผยแพร่ภายใต้ MIT License © Arman Hossain
 ซึ่งเป็นสัญญาอนุญาตแยกต่างหากจากเอกสารชุดนี้
