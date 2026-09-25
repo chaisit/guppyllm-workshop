@@ -14,15 +14,18 @@
 
 ---
 
-## 2.1 เตรียม Colab Environment
+## 2.1 เตรียม Environment (Cell 1–2)
 
-### Cell 1 — ตรวจ GPU
+> 📓 หัวข้อนี้อธิบาย **Cell 1–2** ของโน้ตบุ๊กหลัก [`code/colab/COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md) ให้ยึดลำดับเลข Cell จากไฟล์นั้นเป็นหลัก
+> โค้ดด้านล่างคือส่วนย่อยของ Cell 1–2 ที่แยกอธิบายทีละชิ้น
+
+### Cell 1 (ส่วนตรวจ GPU)
 
 ```python
 !nvidia-smi
 ```
 
-### Cell 2 — Clone repository (Colab หรือ Jupyter local)
+### Cell 1 (ส่วน clone repository) — Colab หรือ Jupyter local
 
 ```python
 import os, sys
@@ -47,9 +50,10 @@ print(f"Environment: {'Google Colab' if IN_COLAB else 'Jupyter local'}")
 
 > 📌 **ทำไมไม่ `%cd guppylm`?** เพราะต่อจากนี้เราจะ `import guppylm.*` แบบ package แล้วรัน `prepare()` / `train()` ในโปรเซสเดียวกับโน้ตบุ๊ก การเพิ่ม repo เข้า `sys.path` แทนการ `cd` ทำให้ working directory ยังเป็นที่ที่เราคุมได้
 
-### Cell 3 — กำหนดที่เก็บ checkpoint
+### Cell 2 — กำหนดที่เก็บ checkpoint
 
 > บน **Colab** จะ mount Google Drive; บน **Jupyter local** จะเก็บลงโฟลเดอร์ในเครื่อง
+> 🔑 Cell นี้นิยามตัวแปร `WORKSHOP_DIR`, `DATA_DIR`, `CKPT_DIR`, `EXPORT_DIR` ที่ **Cell อื่น ๆ ทั้งหมดใช้ต่อ** — ห้ามข้าม
 
 ```python
 import os
@@ -61,9 +65,10 @@ if IN_COLAB:
 else:
     WORKSHOP_DIR = os.path.abspath('guppylm_workshop')
 
+DATA_DIR   = os.path.join(WORKSHOP_DIR, 'data')
 CKPT_DIR   = os.path.join(WORKSHOP_DIR, 'checkpoints')
 EXPORT_DIR = os.path.join(WORKSHOP_DIR, 'export')
-for d in (CKPT_DIR, EXPORT_DIR):
+for d in (DATA_DIR, CKPT_DIR, EXPORT_DIR):
     os.makedirs(d, exist_ok=True)
 print(f"✅ Workshop directory: {WORKSHOP_DIR}")
 ```
@@ -90,11 +95,14 @@ flowchart LR
 
 ---
 
-## 2.2 สำรวจ Dataset
+## 2.2 สำรวจ Dataset (สาธิตเพื่อเรียนรู้)
+
+> 🧪 **หมายเหตุลำดับ Cell:** §2.2–2.5 เป็น **cell สาธิตเพื่อทำความเข้าใจ** ว่า dataset และ tokenizer ถูกสร้างขึ้นอย่างไร — **ไม่ใช่ cell บังคับในลำดับการรันจริง**
+> ใน flow จริง เราสร้าง data + tokenizer ด้วย **Cell 3** (`prepare()`) ทีเดียวจบ (ดู §2.6) cell สาธิตเหล่านี้จึงใช้ label ว่า *"(สาธิต)"* เพื่อไม่ให้สับสนกับเลข Cell ของโน้ตบุ๊กหลัก
 
 GuppyLM ใช้ **synthetic dataset** ขนาด 60,000 บทสนทนา ครอบคลุม 60 หัวข้อ
 
-### Cell 4 — โหลดและดู dataset
+### Cell (สาธิต) — โหลดและดู dataset
 
 ```python
 from datasets import load_dataset
@@ -119,7 +127,7 @@ DatasetDict({
 })
 ```
 
-### Cell 5 — วิเคราะห์ data diversity
+### Cell (สาธิต) — วิเคราะห์ data diversity
 
 ```python
 from collections import Counter
@@ -211,9 +219,11 @@ flowchart TD
 
 ---
 
-## 2.4 Lab: เทรน BPE Tokenizer เอง
+## 2.4 Lab: เทรน BPE Tokenizer เอง (สาธิต)
 
-### Cell 6 — เตรียม corpus
+> 🧪 **สาธิตเพื่อเรียนรู้:** หัวข้อนี้พานักศึกษาสร้าง tokenizer ทีละขั้นด้วยมือ เพื่อเข้าใจว่าเบื้องหลัง `prepare()` (Cell 3) ทำอะไร — ผลลัพธ์เทียบเท่ากับที่ Cell 3 สร้างให้อัตโนมัติ **ในการรันจริงใช้ Cell 3 ได้เลย ไม่ต้องรัน cell สาธิตชุดนี้**
+
+### Cell (สาธิต) — เตรียม corpus
 
 ```python
 import os
@@ -228,7 +238,7 @@ with open('data/corpus.txt', 'w', encoding='utf-8') as f:
 print(f"corpus size: {os.path.getsize('data/corpus.txt')/1024/1024:.2f} MB")
 ```
 
-### Cell 7 — เทรน tokenizer (แบบเดียวกับ repo จริง)
+### Cell (สาธิต) — เทรน tokenizer (แบบเดียวกับ repo จริง)
 
 GuppyLM ใช้ **ByteLevel BPE** — pre-tokenizer และ decoder เป็นแบบ ByteLevel ทั้งคู่ (ไม่ใช่ `Whitespace`) และมี special tokens เพียง **3 ตัว** (ไม่มี `<unk>` เพราะ ByteLevel เข้ารหัสทุก byte ได้อยู่แล้ว จึงไม่มีทางเจอ token ที่ "ไม่รู้จัก")
 
@@ -259,7 +269,7 @@ print(f"✅ Vocabulary size: {tk.get_vocab_size()}")
 
 > 📖 **`<unk>` token คืออะไร?** ในระบบเก่า ถ้าเจอคำหรืออักขระที่ไม่เคยเห็นตอนเทรน จะแทนด้วย token พิเศษ `<unk>` (unknown) ซึ่งทำให้ข้อมูลบางส่วนหายไป ByteLevel BPE แก้ปัญหานี้ได้หมดเพราะมันรู้จักทุก byte อยู่แล้ว
 
-### Cell 8 — ทดสอบ tokenizer
+### Cell (สาธิต) — ทดสอบ tokenizer
 
 ```python
 from tokenizers import Tokenizer
@@ -288,9 +298,9 @@ for t in tests:
 
 ---
 
-## 2.5 Next-Token Dataset
+## 2.5 Next-Token Dataset (สาธิต)
 
-### Cell 9 — ดูว่า dataset สร้าง x, y อย่างไร
+### Cell (สาธิต) — ดูว่า dataset สร้าง x, y อย่างไร
 
 ```python
 sample = "<|im_start|>user\nhi guppy<|im_end|>"
@@ -333,7 +343,9 @@ flowchart LR
 
 ---
 
-## 2.6 เตรียมข้อมูลด้วย script ของ repo
+## 2.6 เตรียมข้อมูลด้วย script ของ repo (Cell 3)
+
+> 📓 **นี่คือ Cell 3 ของโน้ตบุ๊กหลัก** — flow การรันจริงข้ามส่วนสาธิต §2.4–2.5 มาที่นี่ได้เลย ทำทีเดียวได้ทั้ง data + tokenizer
 
 แทนที่จะทำทีละขั้นเอง สามารถใช้ script สำเร็จรูป โดยเรียกแบบ **in-process** (แนวเดียวกับตอนเทรนใน Module 03):
 

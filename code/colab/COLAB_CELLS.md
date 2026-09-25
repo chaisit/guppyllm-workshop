@@ -4,8 +4,28 @@
 
 # 📓 Colab / Jupyter Cells พร้อมใช้
 
-> คัดลอกทีละ cell ไปวางใน Google Colab **หรือ** Jupyter Notebook บนเครื่องตัวเอง ตามลำดับ
+> 📓 **ไฟล์นี้คือโน้ตบุ๊กที่นักศึกษารันจริง** — เป็น **แหล่งอ้างอิงหลัก (single source of truth)** ของลำดับการรันทั้งเวิร์กช็อป
+> คัดลอกทีละ cell ไปวางใน Google Colab **หรือ** Jupyter Notebook บนเครื่องตัวเอง **ตามลำดับ Cell 1 → 10**
 > Cell ชุดนี้ออกแบบให้รันได้ทั้งสองสภาพแวดล้อมด้วยโค้ดชุดเดียว — Cell 1 จะตรวจเองว่าอยู่บน Colab หรือ local
+>
+> 📖 **ส่วนเอกสาร Module 02–04 เป็น "คำอธิบายประกอบ" ของ Cell เหล่านี้** ไม่ใช่ชุด cell แยกต่างหาก — แต่ละหัวข้อในเอกสารจะระบุว่าตรงกับ Cell เลขใดในไฟล์นี้ ให้ยึดลำดับเลข Cell จากไฟล์นี้เป็นหลัก
+
+## 🗺️ Module ↔ Cell mapping
+
+ตารางนี้บอกว่าเอกสารแต่ละ Module อธิบาย Cell ไหนในไฟล์นี้ — เวลาเรียนให้เปิดเอกสารคู่กับโน้ตบุ๊กที่รันตามเลข Cell นี้
+
+| Module (เอกสาร) | อธิบาย Cell | ทำอะไร |
+|---|---|---|
+| [Module 02 §2.1](../../docs/02-data-tokenizer.md) | **Cell 1–2** | Setup, ตรวจ environment, กำหนดที่เก็บ |
+| [Module 02 §2.6](../../docs/02-data-tokenizer.md) | **Cell 3** | เตรียม data + tokenizer (`prepare()`) |
+| [Module 03 §3.5](../../docs/03-model-training.md) | **Cell 4** (4a–4c) | เทรน (in-process) |
+| [Module 03 §3.7](../../docs/03-model-training.md) | **Cell 5** | ทดสอบโมเดล |
+| [Module 04 §4.2](../../docs/04-export-checkpoint.md) | **Cell 6–7** | Export + Download |
+| [Module 04 §4.6](../../docs/04-export-checkpoint.md) | **Cell 8** | Upload HuggingFace (ทางเลือก) |
+| [Module 03 §3.6](../../docs/03-model-training.md) | **Cell 9** | Resume จาก checkpoint (ทางเลือก) |
+| [Plan C](../../instructor/PLAN-C.md) | **Cell 10** | CPU-friendly config (ทางเลือก) |
+
+> 🧩 **cell ย่อย a/b/c** (เช่น Cell 4a, 4b, 4c) คือขั้นตอนย่อยที่รันต่อเนื่องกันภายใน Cell เดียวกัน แยกเป็นหลาย code block เพื่ออธิบายทีละส่วน — รันเรียงตามตัวอักษร
 
 ## 🔢 ลำดับการรัน
 
@@ -26,7 +46,7 @@ flowchart LR
 > ⚠️ **บน Colab: Cell 2 (Mount Drive) ห้ามข้าม** — ถ้าข้าม checkpoint จะหายเมื่อ session ตาย
 > 💻 **บน Jupyter local:** Cell 2 จะข้าม mount ให้อัตโนมัติ และเก็บ checkpoint ลงโฟลเดอร์ในเครื่องแทน
 
-> 🔑 **จุดสำคัญที่สุดของชุด cell นี้:** เรารัน `guppylm.train.train()` **ในโปรเซสเดียวกับ notebook** (ไม่ใช่ `!python -m guppylm.train` ที่เป็น subprocess) จึง override `output_dir`/`data_dir` ให้ชี้ไปที่ Drive/โฟลเดอร์ในเครื่องได้จริง — ดูเหตุผลละเอียดใน [Module 03 §3.5](../../docs/03-model-training.md#35-lab-เทรนจริง)
+> 🔑 **จุดสำคัญที่สุดของชุด cell นี้:** เรารัน `guppylm.train.train()` **ในโปรเซสเดียวกับ notebook** (ไม่ใช่ `!python -m guppylm.train` ที่เป็น subprocess) จึง override `output_dir`/`data_dir` ให้ชี้ไปที่ Drive/โฟลเดอร์ในเครื่องได้จริง — ดูเหตุผลละเอียดใน [Module 03 §3.5](../../docs/03-model-training.md#35-lab-เทรนจริง-cell-4)
 
 ---
 
@@ -254,6 +274,7 @@ print("\n✅ checkpoint อยู่ใน CKPT_DIR เรียบร้อย"
 ## Cell 5 — ทดสอบโมเดล (ยังอยู่ในโน้ตบุ๊ก)
 
 ```python
+import os, torch
 from guppylm.inference import GuppyInference
 
 engine = GuppyInference(
@@ -420,8 +441,13 @@ else:
 > รัน cell นี้ **แทน Cell 4a–4c** เมื่ออยู่บน CPU
 
 ```python
+import os
 import guppylm.train as gtrain
 from guppylm.config import GuppyConfig, TrainConfig
+
+# ล็อก cwd เหมือน Cell 4b (train.py อ่าน data/ แบบ relative ต่อ cwd)
+os.chdir(WORKSHOP_DIR)
+assert os.path.exists('data/train.jsonl'), "ต้องรัน Cell 3 (prepare) ก่อน"
 
 # โมเดลเล็กลงมากให้เทรนไหวบน CPU
 def _cpu_model_config():

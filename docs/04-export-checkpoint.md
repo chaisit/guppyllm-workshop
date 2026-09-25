@@ -2,10 +2,11 @@
 
 ---
 
-# 📦 Module 04 — Export Checkpoint จาก Colab
+# 📦 Module 04 — Export Checkpoint
 
-> ⏱️ **45 นาที** · Lab ปฏิบัติบน Google Colab
+> ⏱️ **45 นาที** · Lab ปฏิบัติบน Google Colab หรือ Jupyter บนเครื่องตัวเอง
 > 🆕 **Module ใหม่** — นี่คือสะพานเชื่อมระหว่างเฟส Train และเฟส Run
+> 📓 ต่อเนื่องจากโน้ตบุ๊กหลัก [`code/colab/COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md) — หัวข้อนี้คือ **Cell 6–8**
 
 ## 🎯 Learning Objectives
 - บันทึก checkpoint ในรูปแบบที่พกพาข้ามเครื่องได้
@@ -56,16 +57,18 @@ flowchart TD
 
 ---
 
-## 4.2 Lab: Export แบบพกพาได้
+## 4.2 Lab: Export แบบพกพาได้ (Cell 6)
 
-### Cell 1 — แยก state_dict และ config
+> 📓 หัวข้อนี้อธิบาย **Cell 6–7** ของโน้ตบุ๊กหลัก [`code/colab/COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md)
+> ✅ **ต้องรันมาก่อน:** Cell 1–2 (นิยาม `CKPT_DIR`, `EXPORT_DIR`), Cell 3 (`prepare()`), Cell 4 (เทรนได้ `best_model.pt`)
+> 💡 ตัวแปร `CKPT_DIR` และ `EXPORT_DIR` มาจาก **Cell 2** อยู่แล้ว จึงไม่ต้องนิยามใหม่ที่นี่
+
+### Cell 6 — แยก state_dict และ config
 
 ```python
 import torch, json, os, shutil
 
-EXPORT_DIR = '/content/drive/MyDrive/guppylm_workshop/export'
-os.makedirs(EXPORT_DIR, exist_ok=True)
-
+# CKPT_DIR / EXPORT_DIR มาจาก Cell 2 แล้ว (ไม่ต้อง hardcode ซ้ำ)
 # โหลด checkpoint ที่เทรนเสร็จ
 ckpt = torch.load(
     f'{CKPT_DIR}/best_model.pt',
@@ -174,7 +177,7 @@ ckpt = torch.load(path, map_location='cpu')
 
 ## 4.5 ทางเลือก: safetensors (ปลอดภัยกว่า)
 
-### Cell 2 — Export เป็น safetensors
+### Cell 6b — Export เป็น safetensors
 
 ```python
 !pip install -q safetensors
@@ -221,20 +224,25 @@ model.load_state_dict(sd)
 
 ## 4.6 วิธีนำไฟล์ออกจาก Colab
 
-### วิธี A — ZIP + Download (แนะนำสำหรับห้องเรียน)
+### วิธี A — ZIP + Download (Cell 7, แนะนำสำหรับห้องเรียน)
 
 ```python
-import shutil
-from google.colab import files
+import shutil, os
 
-shutil.make_archive('/content/guppy_export', 'zip', EXPORT_DIR)
-size = os.path.getsize('/content/guppy_export.zip') / 1024 / 1024
-print(f"ZIP size: {size:.2f} MB")
+zip_base = os.path.join(WORKSHOP_DIR, 'guppy_export')
+shutil.make_archive(zip_base, 'zip', EXPORT_DIR)
+zip_path = zip_base + '.zip'
+size = os.path.getsize(zip_path) / 1024 / 1024
+print(f"ZIP: {zip_path} ({size:.2f} MB)")
 
-files.download('/content/guppy_export.zip')
+if IN_COLAB:
+    from google.colab import files
+    files.download(zip_path)
+else:
+    print("อยู่บนเครื่อง local แล้ว — เปิดไฟล์ ZIP ได้จากโฟลเดอร์ข้างบนโดยตรง")
 ```
 
-> 💡 `files.download()` โหลดได้ทีละไฟล์เท่านั้น จึงต้อง zip รวมก่อน
+> 💡 บน Colab `files.download()` โหลดได้ทีละไฟล์เท่านั้น จึงต้อง zip รวมก่อน — บน Jupyter local ไม่ต้องดาวน์โหลด ไฟล์อยู่ในเครื่องแล้ว
 
 ### วิธี B — ผ่าน Google Drive (ปลอดภัยสุด)
 
@@ -242,7 +250,7 @@ files.download('/content/guppy_export.zip')
 
 **ข้อดี:** ถึงแม้ Colab session ตาย ไฟล์ก็ยังอยู่
 
-### วิธี C — HuggingFace Hub (สอน model sharing)
+### วิธี C — HuggingFace Hub (Cell 8, สอน model sharing)
 
 ```python
 !pip install -q huggingface_hub

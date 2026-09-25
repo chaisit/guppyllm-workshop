@@ -78,7 +78,7 @@ flowchart TD
 >
 > 🎯 **Weight init (initialization) คืออะไร?** คือการ "สุ่มค่าน้ำหนักเริ่มต้น" ก่อนเทรน การสุ่มด้วยค่าเล็ก ๆ (std=0.02) ตามสูตรของ GPT ช่วยให้โมเดลออกสตาร์ทจากจุดที่เทรนต่อได้ราบรื่น ไม่ระเบิดตั้งแต่ก้าวแรก
 
-### Cell — นับ parameters และตรวจ shape
+### Cell (สาธิต) — นับ parameters และตรวจ shape
 
 ```python
 from guppylm.config import GuppyConfig
@@ -242,10 +242,13 @@ use_amp = device.type == "cuda"
 
 ---
 
-## 3.5 Lab: เทรนจริง
+## 3.5 Lab: เทรนจริง (Cell 4)
 
 > 🖥️ **Lab นี้รันได้ทั้ง Google Colab และ Jupyter บนเครื่องตัวเอง** — โค้ดชุดเดียวกัน
-> โค้ดเต็มพร้อมคัดลอกอยู่ที่ [`code/colab/COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md) (Cell 1–4)
+> โค้ดเต็มพร้อมคัดลอกอยู่ที่ [`code/colab/COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md)
+>
+> ✅ **ต้องรัน Cell เหล่านี้มาก่อน** (จาก Module 02): **Cell 1** (setup + `sys.path`), **Cell 2** (นิยาม `WORKSHOP_DIR`/`CKPT_DIR`), **Cell 3** (`prepare()` สร้าง data + tokenizer)
+> หัวข้อนี้อธิบาย **Cell 4** (แบ่งเป็น 4a → 4b → 4c รันเรียงกัน)
 
 ### ⚠️ กับดักสำคัญ: ทำไมตั้ง `CKPT_DIR` แล้ว checkpoint ยังหาย?
 
@@ -285,7 +288,7 @@ FileNotFoundError: [Errno 2] No such file or directory: 'data/train.jsonl'
 
 **ทางแก้ที่ทนทาน:** ล็อก working directory ให้แน่นอนด้วย `os.chdir(WORKSHOP_DIR)` ก่อนทั้ง `prepare()` และ `train()` — data จะถูกสร้างและอ่านจากที่เดียวกันเสมอ (บน Colab ยังได้ persist `data/` ลง Drive เป็นของแถมด้วย)
 
-### Cell — ตั้งที่เก็บ checkpoint ให้ถูก แล้วเทรน (in-process)
+### Cell 4a–4c — ตั้งที่เก็บ checkpoint ให้ถูก แล้วเทรน (in-process)
 
 ```python
 import os
@@ -330,7 +333,7 @@ Done! 298s, best eval: 0.6880
 
 ⏱️ **เวลาที่คาดหวัง:** ~5 นาทีบน T4 ที่ว่าง (เผื่อ 15–30 นาทีถ้า GPU แชร์กันเยอะ)
 
-### Cell — ยืนยันว่า checkpoint ไปอยู่ถูกที่
+### Cell 4c (ต่อ) — ยืนยันว่า checkpoint ไปอยู่ถูกที่
 
 ```python
 import os
@@ -391,16 +394,23 @@ flowchart TD
     style B2 fill:#ffcdd2,stroke:#c62828
 ```
 
-### Resume จาก checkpoint
+### Resume จาก checkpoint (Cell 9 — ทางเลือก)
 
 ```python
 import torch, os
+from guppylm.config import GuppyConfig
+from guppylm.model import GuppyLM
 
-resume_path = f'{CKPT_DIR}/best_model.pt'
+resume_path = os.path.join(CKPT_DIR, 'best_model.pt')
 if os.path.exists(resume_path):
     ckpt = torch.load(resume_path, map_location='cpu', weights_only=False)
+    # สร้างโมเดลจาก config ที่บันทึกไว้ แล้วโหลด weights กลับ
+    valid = {f.name for f in GuppyConfig.__dataclass_fields__.values()}
+    cfg = ckpt['config']
+    cfg = cfg if isinstance(cfg, dict) else vars(cfg)
+    model = GuppyLM(GuppyConfig(**{k: v for k, v in cfg.items() if k in valid}))
     model.load_state_dict(ckpt['model_state_dict'])
-    print("✅ Resumed from checkpoint")
+    print(f"✅ Resumed from checkpoint (step {ckpt.get('step')})")
 else:
     print("เริ่มเทรนใหม่จากศูนย์")
 ```
@@ -422,7 +432,9 @@ else:
 
 ---
 
-## 3.7 ทดสอบโมเดลที่เทรนเสร็จ (ยังอยู่ในโน้ตบุ๊ก)
+## 3.7 ทดสอบโมเดลที่เทรนเสร็จ (Cell 5)
+
+> 📓 หัวข้อนี้คือ **Cell 5** ของโน้ตบุ๊กหลัก — รันต่อจาก Cell 4 ในโปรเซสเดียวกัน (ตัวแปร `CKPT_DIR`, `torch` ยังอยู่)
 
 ```python
 import os, torch

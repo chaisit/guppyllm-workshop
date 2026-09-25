@@ -115,7 +115,7 @@ flowchart TD
 - อธิบายด้วย diagram ephemeral vs persistent
 - **เดินตรวจทีละคน**ว่า path ชี้ไป Drive จริง
 - ให้พิมพ์ `print(CKPT_DIR)` แล้วยกมือถ้าเห็น `/content/drive/...`
-- ⚠️ **ย้ำให้หนัก:** แค่ตั้ง `CKPT_DIR` ไม่พอ ต้องรัน **Cell 4b (override `TrainConfig`) ก่อน** แล้วเทรนด้วย `gtrain.train()` (in-process) — **ห้ามใช้ `!python -m guppylm.train`** เพราะ subprocess จะไม่เห็น `CKPT_DIR` (ดู [Module 03 §3.5](../docs/03-model-training.md#35-lab-เทรนจริง) และ [Troubleshooting](../docs/08-troubleshooting.md))
+- ⚠️ **ย้ำให้หนัก:** แค่ตั้ง `CKPT_DIR` ไม่พอ ต้องรัน **Cell 4b (override `TrainConfig`) ก่อน** แล้วเทรนด้วย `gtrain.train()` (in-process) — **ห้ามใช้ `!python -m guppylm.train`** เพราะ subprocess จะไม่เห็น `CKPT_DIR` (ดู [Module 03 §3.5](../docs/03-model-training.md#35-lab-เทรนจริง-cell-4) และ [Troubleshooting](../docs/08-troubleshooting.md))
 - ให้ตรวจด้วย `assert gtrain.TrainConfig().output_dir == CKPT_DIR` ก่อนกดเทรน
 
 ### 2. เริ่ม Training ก่อนพักเที่ยง
