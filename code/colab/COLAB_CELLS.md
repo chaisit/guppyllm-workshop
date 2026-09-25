@@ -2,81 +2,117 @@
 
 ---
 
-# 📓 Colab Cells พร้อมใช้
+# 📓 Colab / Jupyter Cells พร้อมใช้
 
-> คัดลอกทีละ cell ไปวางใน Google Colab ตามลำดับ
+> คัดลอกทีละ cell ไปวางใน Google Colab **หรือ** Jupyter Notebook บนเครื่องตัวเอง ตามลำดับ
+> Cell ชุดนี้ออกแบบให้รันได้ทั้งสองสภาพแวดล้อมด้วยโค้ดชุดเดียว — Cell 1 จะตรวจเองว่าอยู่บน Colab หรือ local
 
 ## 🔢 ลำดับการรัน
 
 ```mermaid
 flowchart LR
-    C1["1️⃣ Setup"] --> C2["2️⃣ Mount Drive"]
+    C1["1️⃣ Setup +<br/>ตรวจ environment"] --> C2["2️⃣ กำหนดที่เก็บ<br/>(Mount Drive / local)"]
     C2 --> C3["3️⃣ Data"]
-    C3 --> C4["4️⃣ Train"]
+    C3 --> C4["4️⃣ Train<br/>(in-process)"]
     C4 --> C5["5️⃣ Test"]
     C5 --> C6["6️⃣ Export"]
     C6 --> C7["7️⃣ Download"]
 
     style C2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style C4 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     style C6 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
 ```
 
-> ⚠️ **Cell 2 (Mount Drive) ห้ามข้าม** — ถ้าข้าม checkpoint จะหายเมื่อ session ตาย
+> ⚠️ **บน Colab: Cell 2 (Mount Drive) ห้ามข้าม** — ถ้าข้าม checkpoint จะหายเมื่อ session ตาย
+> 💻 **บน Jupyter local:** Cell 2 จะข้าม mount ให้อัตโนมัติ และเก็บ checkpoint ลงโฟลเดอร์ในเครื่องแทน
+
+> 🔑 **จุดสำคัญที่สุดของชุด cell นี้:** เรารัน `guppylm.train.train()` **ในโปรเซสเดียวกับ notebook** (ไม่ใช่ `!python -m guppylm.train` ที่เป็น subprocess) จึง override `output_dir`/`data_dir` ให้ชี้ไปที่ Drive/โฟลเดอร์ในเครื่องได้จริง — ดูเหตุผลละเอียดใน [Module 03 §3.5](../../docs/03-model-training.md#35-lab-เทรนจริง)
 
 ---
 
-## Cell 1 — Setup และตรวจ GPU
+## Cell 1 — Setup, ตรวจ environment และ GPU
 
 ```python
-# ตรวจว่าได้ GPU หรือไม่
-!nvidia-smi
+import os, sys
 
-# Clone repository
-!git clone https://github.com/arman-bd/guppylm.git
-%cd guppylm
+# ── ตรวจว่าอยู่บน Colab หรือ Jupyter local ──
+try:
+    import google.colab  # noqa: F401
+    IN_COLAB = True
+except ImportError:
+    IN_COLAB = False
+print(f"Environment: {'Google Colab' if IN_COLAB else 'Jupyter local'}")
 
-# ติดตั้ง dependencies
+# ── Clone repository (ถ้ายังไม่มี) ──
+if not os.path.isdir('guppylm'):
+    !git clone https://github.com/arman-bd/guppylm.git
+
+# ให้ import guppylm.* ได้ โดยไม่ต้อง cd เข้า repo
+REPO_DIR = os.path.abspath('guppylm')
+if REPO_DIR not in sys.path:
+    sys.path.insert(0, REPO_DIR)
+
+# ── ติดตั้ง dependencies ──
+# บน Colab มี torch อยู่แล้ว; บนเครื่อง local ให้ติดตั้ง torch เอง (ดู code/local/README.md)
 !pip install -q tokenizers datasets safetensors
 
 import torch
-print(f"\nPyTorch: {torch.__version__}")
+print(f"PyTorch: {torch.__version__}")
 print(f"CUDA available: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
 ```
 
+> 📌 **ทำไมไม่ `%cd guppylm`?** เพราะเราจะ `import guppylm.train` แบบ package แล้วรัน `train()` ในโปรเซสนี้เลย
+> การเพิ่ม repo เข้า `sys.path` แทนการ `cd` ทำให้ working directory ยังเป็นที่ที่เราคุมได้ (สำคัญตอนกำหนดที่เก็บ `data/` และ checkpoint)
+
 ---
 
-## Cell 2 — Mount Google Drive ⚠️ สำคัญที่สุด
+## Cell 2 — กำหนดที่เก็บ checkpoint ⚠️ สำคัญที่สุด
+
+> บน **Colab** จะ mount Google Drive เพื่อกัน checkpoint หายเมื่อ session ตาย
+> บน **Jupyter local** จะเก็บลงโฟลเดอร์ในเครื่องแทน (ไม่ต้อง mount อะไร)
 
 ```python
-from google.colab import drive
-drive.mount('/content/drive')
-
 import os
 
-WORKSHOP_DIR = '/content/drive/MyDrive/guppylm_workshop'
-CKPT_DIR = f'{WORKSHOP_DIR}/checkpoints'
-EXPORT_DIR = f'{WORKSHOP_DIR}/export'
+if IN_COLAB:
+    from google.colab import drive
+    drive.mount('/content/drive')
+    WORKSHOP_DIR = '/content/drive/MyDrive/guppylm_workshop'
+else:
+    # เครื่องตัวเอง — เก็บไว้ในโฟลเดอร์ปัจจุบัน
+    WORKSHOP_DIR = os.path.abspath('guppylm_workshop')
 
-os.makedirs(CKPT_DIR, exist_ok=True)
-os.makedirs(EXPORT_DIR, exist_ok=True)
+DATA_DIR   = os.path.join(WORKSHOP_DIR, 'data')
+CKPT_DIR   = os.path.join(WORKSHOP_DIR, 'checkpoints')
+EXPORT_DIR = os.path.join(WORKSHOP_DIR, 'export')
+
+for d in (DATA_DIR, CKPT_DIR, EXPORT_DIR):
+    os.makedirs(d, exist_ok=True)
 
 print(f"Workshop dir: {WORKSHOP_DIR}")
+print(f"Data:         {DATA_DIR}")
 print(f"Checkpoints:  {CKPT_DIR}")
 print(f"Export:       {EXPORT_DIR}")
-print("\n>>> ตรวจว่า path ขึ้นต้นด้วย /content/drive/ แล้วยกมือ <<<")
+
+if IN_COLAB:
+    print("\n>>> ตรวจว่า path ขึ้นต้นด้วย /content/drive/ แล้วยกมือ <<<")
 ```
 
-> 🔴 **ถ้า path ไม่ขึ้นต้นด้วย `/content/drive/` แปลว่า mount ไม่สำเร็จ — อย่าเทรนต่อ**
+> 🔴 **บน Colab: ถ้า path ไม่ขึ้นต้นด้วย `/content/drive/` แปลว่า mount ไม่สำเร็จ — อย่าเทรนต่อ**
 
 ---
 
 ## Cell 3 — เตรียม Data และ Tokenizer
 
 ```python
-# ใช้ script สำเร็จรูปของ repo
-!python -m guppylm.prepare_data
+# เรียก prepare() แบบ in-process (ไม่ใช่ !python -m) เพื่อให้เป็นแนวเดียวกับตอนเทรน
+from guppylm.prepare_data import prepare
+
+# หมายเหตุ: generate_dataset ของ repo เขียนไฟล์ลง ./data (relative to cwd) เสมอ
+# เราจึงปล่อยให้ data อยู่ที่ ./data — สร้างใหม่ได้เร็ว ไม่ต้อง persist ลง Drive
+prepare()   # สร้าง data/train.jsonl, data/eval.jsonl, data/tokenizer.json
 
 # ตรวจผลลัพธ์
 import os
@@ -84,6 +120,9 @@ for f in sorted(os.listdir('data')):
     size = os.path.getsize(f'data/{f}')
     print(f"{f:25} {size/1024:>10,.1f} KB")
 ```
+
+> 📌 **สังเกตชื่อไฟล์:** repo สร้าง `train.jsonl` และ **`eval.jsonl`** (ไม่ใช่ `test.jsonl`) — `train.py` โหลด `data/eval.jsonl` มาใช้วัด eval loss
+> 🔤 **tokenizer ที่ได้:** BPE แบบ **ByteLevel** vocab 4,096 special tokens 3 ตัว (`<pad>`, `<|im_start|>`, `<|im_end|>`) ตามที่ repo กำหนดจริง
 
 ### Cell 3b — สำรวจ dataset (ถ้าต้องการ)
 
@@ -125,8 +164,9 @@ for t in ["hi guppy", "are you hungry?", "quantum entanglement theory"]:
 
 ## Cell 4 — Training ⏰ กด Run ก่อนพักเที่ยง
 
+### Cell 4a — ตรวจ config ก่อนเทรน
+
 ```python
-# ตรวจ config ก่อนเทรน
 from guppylm.config import GuppyConfig, TrainConfig
 from guppylm.model import GuppyLM
 
@@ -137,42 +177,74 @@ print("=== Model Config ===")
 for k, v in vars(mc).items():
     print(f"  {k:15} = {v}")
 
-print("\n=== Train Config ===")
+print("\n=== Train Config (ค่า default ของ repo) ===")
 for k, v in vars(tc).items():
     print(f"  {k:15} = {v}")
 
 m = GuppyLM(mc)
 print(f"\n{m.param_summary()}")
+del m
 ```
+
+### Cell 4b — ตั้งที่เก็บ checkpoint ให้ถูกต้อง (หัวใจของการแก้ปัญหา)
+
+> ⚠️ **ทำไมต้องมี cell นี้?**
+> `guppylm/train.py` เรียก `TrainConfig()` เองภายในฟังก์ชัน `train()` และ `TrainConfig.output_dir` ถูก **hardcode** เป็น `"checkpoints"`
+> ถ้าเรารันด้วย `!python -m guppylm.train` มันจะเป็น **subprocess แยกออกไป** — ตัวแปร `CKPT_DIR` ที่เราตั้งไว้ในโน้ตบุ๊กจะ **ไม่มีผลใด ๆ** และ checkpoint จะตกไปอยู่ใน `checkpoints/` ของ session (หายเมื่อ session ตาย)
+>
+> ทางแก้ที่ถูกต้อง: รัน `train()` **ในโปรเซสเดียวกับโน้ตบุ๊ก** แล้ว override `TrainConfig` ให้ `output_dir` ชี้ไป `CKPT_DIR` ก่อนเรียก
 
 ```python
-# ⚠️ ตั้ง output_dir ให้ชี้ไป Google Drive ก่อนเทรน
-# วิธีที่ 1: แก้ค่าใน config.py โดยตรง
-# วิธีที่ 2: sed แทนที่ (เร็วกว่าสำหรับห้องเรียน)
+import guppylm.train as gtrain
+from guppylm.config import TrainConfig
 
-!sed -i "s|output_dir: str = \"checkpoints\"|output_dir: str = \"{CKPT_DIR}\"|" guppylm/config.py
-!grep output_dir guppylm/config.py
+# แทนที่ TrainConfig ที่ train.py ใช้ ด้วยเวอร์ชันที่ output_dir ชี้ไป CKPT_DIR
+# (data_dir คง "data" ตามเดิม เพราะ prepare() เขียน data ลง ./data)
+_BaseTrainConfig = TrainConfig
+def _patched_train_config():
+    return _BaseTrainConfig(output_dir=CKPT_DIR)
+
+gtrain.TrainConfig = _patched_train_config
+
+# ยืนยันว่า override ติดจริง
+print("output_dir ที่จะใช้จริง:", gtrain.TrainConfig().output_dir)
+assert gtrain.TrainConfig().output_dir == CKPT_DIR
 ```
+
+### Cell 4c — เริ่มเทรน (in-process)
 
 ```python
 # 🚀 เริ่มเทรน — ใช้เวลา ~5 นาทีบน T4 ที่ว่าง
-!python -m guppylm.train
+# เรียก train() ตรง ๆ (ไม่ใช่ !python -m) เพื่อให้ override ข้างบนมีผล
+gtrain.train()
 ```
 
 **สิ่งที่ควรเห็น:**
 - loss เริ่มต้นราว **8.3** (= ln(4096))
 - loss ลดลงเรื่อย ๆ
-- มีข้อความ save checkpoint เป็นระยะ
+- checkpoint ถูกบันทึกลง `CKPT_DIR` (บน Drive ถ้าเป็น Colab) เป็นระยะ
+
+```python
+# ✅ ตรวจว่า checkpoint ไปอยู่ที่ถูกที่จริง
+import os
+print("ไฟล์ใน CKPT_DIR:")
+for f in sorted(os.listdir(CKPT_DIR)):
+    size = os.path.getsize(os.path.join(CKPT_DIR, f))
+    print(f"  {f:20} {size/1024/1024:8.2f} MB")
+assert os.path.exists(os.path.join(CKPT_DIR, 'best_model.pt')), \
+    "ไม่พบ best_model.pt ใน CKPT_DIR — ตรวจว่ารัน Cell 4b แล้ว"
+print("\n✅ checkpoint อยู่ใน CKPT_DIR เรียบร้อย")
+```
 
 ---
 
-## Cell 5 — ทดสอบโมเดล (ยังอยู่บน Colab)
+## Cell 5 — ทดสอบโมเดล (ยังอยู่ในโน้ตบุ๊ก)
 
 ```python
 from guppylm.inference import GuppyInference
 
 engine = GuppyInference(
-    checkpoint_path=f'{CKPT_DIR}/best_model.pt',
+    checkpoint_path=os.path.join(CKPT_DIR, 'best_model.pt'),
     tokenizer_path='data/tokenizer.json',
     device='cuda' if torch.cuda.is_available() else 'cpu',
 )
@@ -260,18 +332,25 @@ print("\n💡 ขนาดเท่า .bin แต่ปลอดภัยกว
 
 ## Cell 7 — Download กลับเครื่อง
 
+> 💻 **บน Jupyter local ไม่ต้องทำ cell นี้** — ไฟล์อยู่ใน `EXPORT_DIR` บนเครื่องคุณอยู่แล้ว
+
 ```python
 import shutil, os
-from google.colab import files
 
-shutil.make_archive('/content/guppy_export', 'zip', EXPORT_DIR)
-size = os.path.getsize('/content/guppy_export.zip') / 1024 / 1024
-print(f"ZIP size: {size:.2f} MB")
+zip_base = os.path.join(WORKSHOP_DIR, 'guppy_export')
+shutil.make_archive(zip_base, 'zip', EXPORT_DIR)
+zip_path = zip_base + '.zip'
+size = os.path.getsize(zip_path) / 1024 / 1024
+print(f"ZIP: {zip_path} ({size:.2f} MB)")
 
-files.download('/content/guppy_export.zip')
+if IN_COLAB:
+    from google.colab import files
+    files.download(zip_path)
+else:
+    print("อยู่บนเครื่อง local แล้ว — เปิดไฟล์ ZIP ได้จากโฟลเดอร์ข้างบนโดยตรง")
 ```
 
-> 💡 **ทางเลือกที่เสถียรกว่า:** เปิด https://drive.google.com แล้วดาวน์โหลดโฟลเดอร์ `guppylm_workshop/export` โดยตรง — ไฟล์อยู่ที่นั่นแล้ว และไม่หายแม้ session ตาย
+> 💡 **บน Colab ทางเลือกที่เสถียรกว่า:** เปิด https://drive.google.com แล้วดาวน์โหลดโฟลเดอร์ `guppylm_workshop/export` โดยตรง — ไฟล์อยู่ที่นั่นแล้ว และไม่หายแม้ session ตาย
 
 ---
 
@@ -304,53 +383,61 @@ print(f"อัปโหลดแล้ว: https://huggingface.co/{REPO}")
 ```python
 import torch, os
 
-resume_path = f'{CKPT_DIR}/best_model.pt'
+resume_path = os.path.join(CKPT_DIR, 'best_model.pt')
 if os.path.exists(resume_path):
     ckpt = torch.load(resume_path, map_location='cpu', weights_only=False)
     print("พบ checkpoint — สามารถ resume ได้")
+    print(f"Keys:       {list(ckpt.keys())}")
+    print(f"Step:       {ckpt.get('step')}")
     print(f"Parameters: {sum(v.numel() for v in ckpt['model_state_dict'].values()):,}")
 else:
     print("ไม่พบ checkpoint — ต้องเทรนใหม่")
 ```
 
-> ⚠️ **ข้อจำกัด:** checkpoint ของ GuppyLM มีแค่ `model_state_dict` และ `config`
-> **ไม่มี `optimizer_state_dict` และ `step`** → resume ได้แค่ weights ไม่ต่อ optimizer momentum
+> ⚠️ **ข้อจำกัด:** `best_model.pt` ของ GuppyLM บันทึก `step`, `model_state_dict`, `config`, `eval_loss`
+> แต่ **ไม่มี `optimizer_state_dict`** → resume ได้แค่ weights ไม่ต่อ optimizer momentum และ LR schedule
 
 ---
 
 ## Cell 10 (ทางเลือก) — CPU-Friendly Config สำหรับ Plan C
 
-ใช้เมื่อไม่ได้ GPU — เทรนจบใน ~5 นาทีบน CPU (คุณภาพต่ำ แต่เห็น loss ลดจริง)
+ใช้เมื่อไม่ได้ GPU (หรือรันบน Jupyter local ที่ไม่มี GPU) — เทรนจบใน ~5 นาทีบน CPU (คุณภาพต่ำ แต่เห็น loss ลดจริง)
+
+> ใช้แนวเดียวกับ Cell 4b: **override config แบบ in-process** ไม่ต้องแก้ `config.py`
+> รัน cell นี้ **แทน Cell 4a–4c** เมื่ออยู่บน CPU
 
 ```python
-# แก้ config ให้เล็กลงมาก
-CPU_CONFIG = """
-    d_model: int = 128
-    n_layers: int = 2
-    n_heads: int = 4
-    ffn_hidden: int = 256
-    max_seq_len: int = 64
-"""
-print("CPU-friendly config:")
-print(CPU_CONFIG)
-print("""
-TrainConfig:
-    batch_size = 16
-    max_steps = 300
-    warmup_steps = 30
-    eval_interval = 50
-    save_interval = 100
-""")
-print("แก้ค่าเหล่านี้ใน guppylm/config.py ก่อนเทรน")
+import guppylm.train as gtrain
+from guppylm.config import GuppyConfig, TrainConfig
+
+# โมเดลเล็กลงมากให้เทรนไหวบน CPU
+def _cpu_model_config():
+    return GuppyConfig(d_model=128, n_layers=2, n_heads=4,
+                       ffn_hidden=256, max_seq_len=64)
+
+# เทรนสั้นลง + ยังชี้ output_dir ไป CKPT_DIR เหมือนเดิม
+def _cpu_train_config():
+    return TrainConfig(output_dir=CKPT_DIR, batch_size=16, max_steps=300,
+                       warmup_steps=30, eval_interval=50, save_interval=100,
+                       device="cpu")
+
+gtrain.GuppyConfig = _cpu_model_config
+gtrain.TrainConfig = _cpu_train_config
+
+print("CPU config พร้อม — เริ่มเทรนด้วย gtrain.train()")
+gtrain.train()
 ```
+
+> 📌 `train.py` import ทั้ง `GuppyConfig` และ `TrainConfig` ไว้ใน namespace ของตัวเอง เราจึง patch ที่ `gtrain.*` ทั้งคู่ให้มีผลกับ `train()` ที่กำลังจะเรียก
 
 ---
 
-## 📋 Checklist ก่อนปิด Colab
+## 📋 Checklist ก่อนปิด Colab / จบขั้นเทรน
 
-- [ ] checkpoint อยู่ใน Google Drive แล้ว
+- [ ] รัน Cell 4b แล้ว (`gtrain.TrainConfig().output_dir` == `CKPT_DIR`)
+- [ ] checkpoint อยู่ใน `CKPT_DIR` แล้ว (บน Colab = Google Drive)
 - [ ] export ครบ 3 ไฟล์
-- [ ] ดาวน์โหลด ZIP ลงเครื่องแล้ว
+- [ ] (Colab) ดาวน์โหลด ZIP ลงเครื่องแล้ว
 - [ ] แตก ZIP ตรวจแล้วว่าไฟล์ครบ ขนาดถูกต้อง
 
 ---

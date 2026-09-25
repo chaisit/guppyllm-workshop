@@ -37,16 +37,15 @@ flowchart LR
 เทรน BPE tokenizer 3 ตัวด้วย `vocab_size` = 512, 2048, 4096 แล้วนำประโยคเดียวกันไป encode เปรียบเทียบจำนวน token ที่ได้
 
 ```python
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders
 
 def train_tok(vocab_size, path):
-    tk = Tokenizer(BPE(unk_token="<unk>"))
-    tk.pre_tokenizer = Whitespace()
-    trainer = BpeTrainer(vocab_size=vocab_size,
-        special_tokens=["<pad>","<|im_start|>","<|im_end|>","<unk>"])
+    tk = Tokenizer(models.BPE())
+    tk.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+    tk.decoder = decoders.ByteLevel()
+    trainer = trainers.BpeTrainer(vocab_size=vocab_size,
+        special_tokens=["<pad>","<|im_start|>","<|im_end|>"],  # 3 ตัว ตรงกับ repo
+        min_frequency=2)
     tk.train(["data/corpus.txt"], trainer)
     tk.save(path)
     return tk
@@ -62,11 +61,12 @@ for v in [512, 2048, 4096]:
 <summary><b>💡 เฉลย / แนวคำตอบ</b></summary>
 
 **ผลที่ควรเห็น:** vocab เล็กลง → จำนวน token มากขึ้น
+(ByteLevel จะมี `Ġ` นำหน้า token ที่ขึ้นต้นด้วยช่องว่าง เช่น `Ġwater` — ตัวเลขด้านล่างตัด `Ġ` ออกเพื่ออ่านง่าย)
 
 ```
-vocab=  512 → 14 tokens | ['gu','pp','y','lik','es','sw','imm','ing',...]
-vocab= 2048 →  9 tokens | ['gup','py','likes','swimming','in','clean','water']
-vocab= 4096 →  7 tokens | ['guppy','likes','swimming','in','clean','water']
+vocab=  512 → 14 tokens | ['gu','pp','y','Ġlik','es','Ġsw','imm','ing',...]
+vocab= 2048 →  9 tokens | ['gup','py','Ġlikes','Ġswimming','Ġin','Ġclean','Ġwater']
+vocab= 4096 →  7 tokens | ['guppy','Ġlikes','Ġswimming','Ġin','Ġclean','Ġwater']
 ```
 
 **คำอธิบาย:**
@@ -103,7 +103,7 @@ for t in tests:
 
 - **ในโดเมน:** คำเป็น token เดียว ๆ เพราะพบบ่อยใน corpus
 - **นอกโดเมน:** ถูกแตกเป็นตัวอักษรหรือ subword เล็ก ๆ จำนวนมาก
-- **ภาษาไทย:** แย่ที่สุด — corpus ไม่มีภาษาไทยเลย จะกลายเป็น `<unk>` หรือแตกละเอียดมาก
+- **ภาษาไทย:** แย่ที่สุด — corpus ไม่มีภาษาไทยเลย ByteLevel BPE จะ**ไม่เกิด `<unk>`** (เพราะเข้ารหัสได้ทุก byte) แต่จะแตกเป็น byte ย่อยจำนวนมาก 1 อักขระไทยใช้หลาย token
 
 **บทเรียน:** tokenizer สะท้อน training corpus โดยตรง ถ้าจะทำโมเดลภาษาไทยต้องเทรน tokenizer ด้วย corpus ภาษาไทย
 

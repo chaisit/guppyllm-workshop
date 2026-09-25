@@ -139,7 +139,7 @@ flowchart TD
 - **WangchanBERTa** (VISTEC) — pre-trained language model ภาษาไทย
 - **Typhoon / OpenThaiGPT** — LLM ภาษาไทย open-source
 
-> 💡 **โจทย์ท้าทายสำหรับนักศึกษา:** ลองเทรน GuppyLM ด้วย corpus ภาษาไทย — จะพบว่า BPE tokenizer ต้องปรับ (ภาษาไทยไม่มีช่องว่างระหว่างคำ ทำให้ `Whitespace` pre-tokenizer ใช้ไม่ได้ผล) นี่คือปัญหาจริงของการทำ NLP ภาษาไทย
+> 💡 **โจทย์ท้าทายสำหรับนักศึกษา:** ลองเทรน GuppyLM ด้วย corpus ภาษาไทย — จะพบว่า BPE tokenizer ต้องปรับ แม้ ByteLevel BPE (ที่ repo ใช้) จะเข้ารหัสภาษาไทยได้โดยไม่เกิด `<unk>` แต่ก็แตก 1 อักขระไทยเป็นหลาย byte token ทำให้ sequence ยาวและชน context limit 128 tokens เร็ว นี่คือปัญหาจริงของการทำ NLP ภาษาไทย
 
 ---
 

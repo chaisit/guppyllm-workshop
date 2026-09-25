@@ -14,7 +14,7 @@
 | ระยะเวลา | 1 วันเต็ม (6–7 ชั่วโมง) |
 | พื้นฐานที่ต้องมี | เขียน Python ได้ระดับพื้นฐาน (ไม่ต้องเคยใช้ PyTorch) |
 | อุปกรณ์ | Laptop/PC + Internet + บัญชี Google |
-| สถาปัตยกรรม | **Train on Cloud → Run on Local** (2 เฟส) |
+| สถาปัตยกรรม | **Train on Cloud → Run on Local** (2 เฟส) — เฟสเทรนรันได้ทั้ง Google Colab และ Jupyter บนเครื่องตัวเอง |
 | ผลลัพธ์ | นักศึกษาได้ LLM ของตัวเอง รันบนเครื่องตัวเองได้จริง |
 
 ---
@@ -159,7 +159,7 @@ GuppyLM เป็นโปรเจกต์เพื่อการศึกษ
 
 ## 🚀 การนำไปใช้บน GitHub / GitLab
 
-เอกสารชุดนี้เขียนเป็น Markdown ล้วน ใช้ **Mermaid** สำหรับ diagram ทั้งหมด (47 diagram) จึงเปิดดูได้โดยตรงบน GitHub และ GitLab **โดยไม่ต้องมี build step หรือ static site generator**
+เอกสารชุดนี้เขียนเป็น Markdown ล้วน ใช้ **Mermaid** สำหรับ diagram ทั้งหมด (49 diagram) จึงเปิดดูได้โดยตรงบน GitHub และ GitLab **โดยไม่ต้องมี build step หรือ static site generator**
 
 ```bash
 git init
@@ -178,7 +178,7 @@ git push -u origin main
 
 | ประเภท diagram | จำนวน | ต้องการ Mermaid |
 |---|---|---|
-| `flowchart` | 42 | ทุกเวอร์ชัน ✅ |
+| `flowchart` | 44 | ทุกเวอร์ชัน ✅ |
 | `gantt` | 2 | ทุกเวอร์ชัน ✅ |
 | `xychart-beta` | 2 | ≥ 10.3 |
 | `timeline` | 1 | ≥ 9.4 |

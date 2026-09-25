@@ -213,34 +213,86 @@ use_amp = device.type == "cuda"
 
 ## 3.5 Lab: เทรนจริง
 
-### Cell — แก้ output_dir ให้ชี้ไป Google Drive
+> 🖥️ **Lab นี้รันได้ทั้ง Google Colab และ Jupyter บนเครื่องตัวเอง** — โค้ดชุดเดียวกัน
+> โค้ดเต็มพร้อมคัดลอกอยู่ที่ [`code/colab/COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md) (Cell 1–4)
 
-```python
-# ตรวจสอบ path ที่ mount ไว้จาก Module 02
-print(CKPT_DIR)  # /content/drive/MyDrive/guppylm_workshop/checkpoints
+### ⚠️ กับดักสำคัญ: ทำไมตั้ง `CKPT_DIR` แล้ว checkpoint ยังหาย?
+
+นี่คือจุดที่ผิดพลาดกันบ่อยที่สุดในขั้นเทรน:
+
+```mermaid
+flowchart TD
+    subgraph WRONG["❌ วิธีที่ไม่ได้ผล"]
+        W1["ตั้ง CKPT_DIR ในโน้ตบุ๊ก"] --> W2["!python -m guppylm.train"]
+        W2 --> W3["🔴 นี่คือ subprocess<br/>แยกออกไปคนละ process"]
+        W3 --> W4["train() เรียก TrainConfig()<br/>ที่ output_dir='checkpoints'<br/>(hardcode)"]
+        W4 --> W5["💥 checkpoint ตกใน<br/>checkpoints/ ของ session<br/>= หายเมื่อ session ตาย"]
+    end
+
+    subgraph RIGHT["✅ วิธีที่ถูกต้อง"]
+        R1["import guppylm.train"] --> R2["override TrainConfig<br/>ให้ output_dir = CKPT_DIR"]
+        R2 --> R3["เรียก train()<br/>ในโปรเซสเดียวกับโน้ตบุ๊ก"]
+        R3 --> R4["🟢 checkpoint ไปอยู่ที่<br/>CKPT_DIR (บน Drive) จริง"]
+    end
+
+    style WRONG fill:#ffebee,stroke:#c62828
+    style RIGHT fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
-แก้ `guppylm/config.py` ให้ `output_dir` ชี้ไปที่ Drive หรือ override ตอนเรียก train
+**สาเหตุที่แท้จริง:** ใน `guppylm/train.py` ฟังก์ชัน `train()` สร้าง config เองด้วย `TrainConfig()` โดยที่ `TrainConfig.output_dir` เป็นค่า **hardcode = `"checkpoints"`** และไม่รับ argument, ไม่อ่าน environment variable ใด ๆ
 
-### Cell — เริ่มเทรน
+ดังนั้นถ้าเราสั่ง `!python -m guppylm.train` (เครื่องหมาย `!` = รันเป็น subprocess) ตัวแปร `CKPT_DIR` ที่เราตั้งในโน้ตบุ๊กจะอยู่ **คนละ process** จึงไม่มีผลกับ subprocess เลย
+
+### Cell — ตั้งที่เก็บ checkpoint ให้ถูก แล้วเทรน (in-process)
 
 ```python
-!python -m guppylm.train
+# 1) ตรวจ path ที่กำหนดไว้จาก Module 02
+print("CKPT_DIR =", CKPT_DIR)
+# Colab:  /content/drive/MyDrive/guppylm_workshop/checkpoints
+# local:  <โฟลเดอร์ปัจจุบัน>/guppylm_workshop/checkpoints
+
+# 2) override TrainConfig ที่ train.py ใช้ ให้ output_dir ชี้ไป CKPT_DIR
+import guppylm.train as gtrain
+from guppylm.config import TrainConfig
+
+_BaseTrainConfig = TrainConfig
+gtrain.TrainConfig = lambda: _BaseTrainConfig(output_dir=CKPT_DIR)
+assert gtrain.TrainConfig().output_dir == CKPT_DIR
+
+# 3) เทรน — เรียก train() ตรง ๆ (ไม่ใช่ !python -m) จึงอยู่ process เดียวกับโน้ตบุ๊ก
+gtrain.train()
 ```
+
+> 🔑 **ทำไม override ที่ `gtrain.TrainConfig` ไม่ใช่ `guppylm.config.TrainConfig`?**
+> เพราะ `train.py` เขียน `from .config import TrainConfig` ชื่อ `TrainConfig` จึงถูก bind ไว้ใน namespace ของ `guppylm.train` แล้ว การแทนที่จึงต้องทำที่ `guppylm.train.TrainConfig` เพื่อให้ `train()` หยิบตัวที่เราแก้ไปใช้
 
 **✅ ผลลัพธ์ที่ควรเห็น:**
 ```
-Device: cuda (Tesla T4)
+Device: cuda
 GuppyLM: 8,7xx,xxx params (8.7M)
-Step     0 | LR 0.00e+00 | train 8.317 | eval 8.315 | 0.4s
-Step   200 | LR 3.00e-04 | train 4.821 | eval 4.903 | 12.1s
-Step   400 | LR 2.99e-04 | train 3.244 | eval 3.301 | 23.8s
-...
-Step 10000 | LR 3.00e-05 | train 0.612 | eval 0.688 | 298.5s
-Saved: checkpoints/final_model.pt
+Train: 57,000, Eval: 3,000
+   Step |         LR |      Train |       Eval |     Time
+--------------------------------------------------------
+     0 |   0.000000 |     8.3170 |         -- |     0.4s
+   200 |   0.000300 |     4.8210 |     4.9030 |    12.1s
+   ...
+ 10000 |   0.000030 |     0.6120 |     0.6880 |   298.5s
+Done! 298s, best eval: 0.6880
 ```
 
 ⏱️ **เวลาที่คาดหวัง:** ~5 นาทีบน T4 ที่ว่าง (เผื่อ 15–30 นาทีถ้า GPU แชร์กันเยอะ)
+
+### Cell — ยืนยันว่า checkpoint ไปอยู่ถูกที่
+
+```python
+import os
+for f in sorted(os.listdir(CKPT_DIR)):
+    print(f, f"{os.path.getsize(os.path.join(CKPT_DIR, f))/1024/1024:.2f} MB")
+assert os.path.exists(os.path.join(CKPT_DIR, 'best_model.pt'))
+print("✅ checkpoint อยู่ใน CKPT_DIR แล้ว")
+```
+
+> 💻 **บน Jupyter local:** ทำเหมือนกันทุกขั้น เพียงแค่ `CKPT_DIR` เป็นโฟลเดอร์ในเครื่อง (ไม่ต้อง mount Drive) — ดู Cell 2 ใน [`COLAB_CELLS.md`](../code/colab/COLAB_CELLS.md) ที่ตรวจ environment ให้อัตโนมัติ
 
 ### วิธีอ่าน Loss Curve
 
@@ -306,8 +358,8 @@ else:
 ```
 
 > ⚠️ **ข้อจำกัดที่ต้องบอกนักศึกษา:**
-> checkpoint ของ GuppyLM บันทึกเฉพาะ `model_state_dict` และ `config`
-> **ไม่ได้บันทึก `optimizer_state_dict` และ `step`**
+> `best_model.pt` / `final_model.pt` ของ GuppyLM บันทึก `step`, `model_state_dict`, `config` (และ `eval_loss` สำหรับ best)
+> แต่ **ไม่ได้บันทึก `optimizer_state_dict`**
 > ดังนั้นการ resume จะได้แค่ weights ไม่ได้ต่อ optimizer momentum หรือ LR schedule
 >
 > สำหรับเวิร์กช็อปที่เทรนแค่ ~5 นาที ถือว่ายอมรับได้ แต่ถ้าจะทำจริงจังควรแก้ `train.py` ให้บันทึกเพิ่ม:
@@ -322,15 +374,16 @@ else:
 
 ---
 
-## 3.7 ทดสอบโมเดลที่เทรนเสร็จ (ยังอยู่บน Colab)
+## 3.7 ทดสอบโมเดลที่เทรนเสร็จ (ยังอยู่ในโน้ตบุ๊ก)
 
 ```python
+import os, torch
 from guppylm.inference import GuppyInference
 
 engine = GuppyInference(
-    checkpoint_path=f'{CKPT_DIR}/best_model.pt',
+    checkpoint_path=os.path.join(CKPT_DIR, 'best_model.pt'),
     tokenizer_path='data/tokenizer.json',
-    device='cuda'
+    device='cuda' if torch.cuda.is_available() else 'cpu',   # device-agnostic
 )
 
 for q in ["hi guppy", "are you hungry?", "tell me a joke"]:

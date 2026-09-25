@@ -87,22 +87,27 @@ flowchart TD
 
 ---
 
-### Checkpoint หายหมด
+### Checkpoint หายหมด (หรือไม่ไปอยู่ใน Drive)
 
-**อาการ:** หลัง runtime reset ไม่เหลืออะไรเลย
+**อาการ:** ตั้ง `CKPT_DIR` ชี้ไป Drive แล้ว แต่ checkpoint กลับไปอยู่ใน `checkpoints/` ของ session และหายเมื่อ runtime reset
 
-**สาเหตุ:** save ไว้ที่ `/content/` ซึ่งเป็น **ephemeral storage**
+**สาเหตุที่แท้จริง:** สั่งเทรนด้วย `!python -m guppylm.train` ซึ่งเป็น **subprocess แยก process** — ตัวแปร `CKPT_DIR` ในโน้ตบุ๊กไม่มีผลกับ subprocess และ `TrainConfig.output_dir` ถูก hardcode เป็น `"checkpoints"` (relative to `/content/`) ซึ่งเป็น ephemeral storage
 
-**วิธีแก้ (ป้องกันเท่านั้น — กู้ไม่ได้):**
+**วิธีแก้ที่ถูกต้อง — override config แล้วรัน `train()` ในโปรเซสเดียวกับโน้ตบุ๊ก:**
 ```python
-# ❌ ผิด
-output_dir = "checkpoints"                                    # → /content/checkpoints
+# ❌ ผิด — subprocess ไม่เห็น CKPT_DIR, output_dir คงเป็น "checkpoints"
+!python -m guppylm.train
 
-# ✅ ถูก
-output_dir = "/content/drive/MyDrive/guppylm_workshop/checkpoints"
+# ✅ ถูก — in-process override (ดู Module 03 §3.5)
+import guppylm.train as gtrain
+from guppylm.config import TrainConfig
+_Base = TrainConfig
+gtrain.TrainConfig = lambda: _Base(output_dir=CKPT_DIR)   # CKPT_DIR ชี้ไป Drive
+gtrain.train()
 ```
 
 > 🔴 **นี่คือปัญหาที่สร้างความเสียหายมากที่สุดในเวิร์กช็อป** — ย้ำเรื่องนี้ตั้งแต่ Module 02
+> 💡 ดูคำอธิบายเต็มพร้อม diagram ที่ [Module 03 §3.5](03-model-training.md#35-lab-เทรนจริง)
 
 ---
 

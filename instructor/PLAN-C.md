@@ -138,12 +138,21 @@ p = hf_hub_download(repo_id="arman-bd/guppylm-9M", filename="pytorch_model.bin")
 
 2. **เทรน mini-model บน CPU** (5 นาที) — ให้เห็นว่า loss ลดจริง แม้คุณภาพจะต่ำ
    ```python
-   # CPU-friendly config: เทรนจบใน ~5 นาที
-   GuppyConfig(d_model=128, n_layers=2, n_heads=4, ffn_hidden=256, max_seq_len=64)
-   TrainConfig(batch_size=16, max_steps=300, warmup_steps=30,
-               eval_interval=50, save_interval=100)
+   # CPU-friendly config แบบ in-process override (ไม่ต้องแก้ config.py)
+   # ตรงกับ Cell 10 ใน code/colab/COLAB_CELLS.md
+   import guppylm.train as gtrain
+   from guppylm.config import GuppyConfig, TrainConfig
+
+   gtrain.GuppyConfig = lambda: GuppyConfig(
+       d_model=128, n_layers=2, n_heads=4, ffn_hidden=256, max_seq_len=64)
+   gtrain.TrainConfig = lambda: TrainConfig(
+       output_dir=CKPT_DIR, batch_size=16, max_steps=300, warmup_steps=30,
+       eval_interval=50, save_interval=100, device="cpu")
+
+   gtrain.train()
    ```
    > 💡 โมเดลจะพูดไม่รู้เรื่อง แต่**เห็น loss ลดลงจริง** ซึ่งเป็นจุดสอนที่สำคัญ
+   > 📌 บน Jupyter local ตั้ง `CKPT_DIR` เป็นโฟลเดอร์ในเครื่องก่อน (ดู Cell 2 ใน COLAB_CELLS.md)
 
 3. **วิเคราะห์ checkpoint ที่ได้รับ**
    ```python

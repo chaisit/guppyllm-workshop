@@ -96,13 +96,15 @@ for f in sorted(os.listdir(EXPORT_DIR)):
 
 **✅ ผลลัพธ์ที่ควรเห็น:**
 ```
-Keys ใน checkpoint: ['model_state_dict', 'config']
+Keys ใน checkpoint: ['step', 'model_state_dict', 'config', 'eval_loss']
 
 📦 ไฟล์ที่ export:
   config.json                   0.00 MB
   pytorch_model.bin            33.28 MB
   tokenizer.json                0.15 MB
 ```
+
+> 📌 `best_model.pt` มี key `step`, `model_state_dict`, `config`, `eval_loss` — เรา export เฉพาะ `model_state_dict` + `config` ออกไป (ส่วน `step`/`eval_loss` เป็น metadata ของการเทรน ไม่จำเป็นตอน inference)
 
 ---
 

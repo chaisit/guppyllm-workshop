@@ -22,33 +22,56 @@
 !nvidia-smi
 ```
 
-### Cell 2 — Clone repository
+### Cell 2 — Clone repository (Colab หรือ Jupyter local)
 
 ```python
-!git clone https://github.com/arman-bd/guppylm.git
-%cd guppylm
+import os, sys
+
+try:
+    import google.colab  # noqa: F401
+    IN_COLAB = True
+except ImportError:
+    IN_COLAB = False
+
+if not os.path.isdir('guppylm'):
+    !git clone https://github.com/arman-bd/guppylm.git
+
+# เพิ่ม repo เข้า sys.path เพื่อ import guppylm.* โดยไม่ต้อง %cd เข้า repo
+REPO_DIR = os.path.abspath('guppylm')
+if REPO_DIR not in sys.path:
+    sys.path.insert(0, REPO_DIR)
+
 !pip install -q tokenizers datasets
+print(f"Environment: {'Google Colab' if IN_COLAB else 'Jupyter local'}")
 ```
 
-### Cell 3 — Mount Google Drive (สำคัญมาก!)
+> 📌 **ทำไมไม่ `%cd guppylm`?** เพราะต่อจากนี้เราจะ `import guppylm.*` แบบ package แล้วรัน `prepare()` / `train()` ในโปรเซสเดียวกับโน้ตบุ๊ก การเพิ่ม repo เข้า `sys.path` แทนการ `cd` ทำให้ working directory ยังเป็นที่ที่เราคุมได้
+
+### Cell 3 — กำหนดที่เก็บ checkpoint
+
+> บน **Colab** จะ mount Google Drive; บน **Jupyter local** จะเก็บลงโฟลเดอร์ในเครื่อง
 
 ```python
-from google.colab import drive
-drive.mount('/content/drive')
-
 import os
-WORKSHOP_DIR = '/content/drive/MyDrive/guppylm_workshop'
-CKPT_DIR = f'{WORKSHOP_DIR}/checkpoints'
-EXPORT_DIR = f'{WORKSHOP_DIR}/export'
 
-os.makedirs(CKPT_DIR, exist_ok=True)
-os.makedirs(EXPORT_DIR, exist_ok=True)
+if IN_COLAB:
+    from google.colab import drive
+    drive.mount('/content/drive')
+    WORKSHOP_DIR = '/content/drive/MyDrive/guppylm_workshop'
+else:
+    WORKSHOP_DIR = os.path.abspath('guppylm_workshop')
+
+CKPT_DIR   = os.path.join(WORKSHOP_DIR, 'checkpoints')
+EXPORT_DIR = os.path.join(WORKSHOP_DIR, 'export')
+for d in (CKPT_DIR, EXPORT_DIR):
+    os.makedirs(d, exist_ok=True)
 print(f"✅ Workshop directory: {WORKSHOP_DIR}")
 ```
 
-> ⚠️ **ทำไมต้อง mount Drive ตั้งแต่ตอนนี้?**
+> ⚠️ **ทำไมต้อง mount Drive ตั้งแต่ตอนนี้ (บน Colab)?**
 > พื้นที่ `/content/` ใน Colab เป็น **ephemeral** — หายทั้งหมดเมื่อ runtime รีเซ็ตหรือ session ตาย
 > ถ้า save checkpoint ไว้ที่นั่นแล้ว session หลุด = เสียงานทั้งหมด
+> 💻 **บน Jupyter local ไม่ต้อง mount** — ไฟล์อยู่ในเครื่องอยู่แล้ว
 
 ```mermaid
 flowchart LR
@@ -166,7 +189,8 @@ flowchart TD
 | `<pad>` | 0 | เติมให้ sequence ยาวเท่ากันใน batch |
 | `<\|im_start\|>` | 1 | BOS — เริ่มข้อความ |
 | `<\|im_end\|>` | 2 | EOS — จบข้อความ |
-| `<unk>` | 3 | token ที่ไม่รู้จัก |
+
+> 📌 **ไม่มี `<unk>`:** GuppyLM ใช้ ByteLevel BPE ซึ่งเข้ารหัสได้ทุก byte จึงไม่มี token ที่ "ไม่รู้จัก" — special tokens จึงมีแค่ 3 ตัวข้างต้น (ตรงกับ `guppylm/prepare_data.py`)
 
 > 📌 **หมายเหตุ:** GuppyLM **ไม่มี system prompt** โดยตั้งใจ เพราะโมเดล 9M ไม่สามารถ conditionally follow instructions ได้อยู่แล้ว บุคลิกจึงต้องฝังไว้ใน training data ทั้งหมด
 
@@ -189,27 +213,32 @@ with open('data/corpus.txt', 'w', encoding='utf-8') as f:
 print(f"corpus size: {os.path.getsize('data/corpus.txt')/1024/1024:.2f} MB")
 ```
 
-### Cell 7 — เทรน tokenizer
+### Cell 7 — เทรน tokenizer (แบบเดียวกับ repo จริง)
+
+GuppyLM ใช้ **ByteLevel BPE** — pre-tokenizer และ decoder เป็นแบบ ByteLevel ทั้งคู่ (ไม่ใช่ `Whitespace`) และมี special tokens เพียง **3 ตัว** (ไม่มี `<unk>` เพราะ ByteLevel เข้ารหัสทุก byte ได้อยู่แล้ว จึงไม่มีทางเจอ token ที่ "ไม่รู้จัก")
 
 ```python
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders, processors
 
-tk = Tokenizer(BPE(unk_token="<unk>"))
-tk.pre_tokenizer = Whitespace()
+tk = Tokenizer(models.BPE())
+tk.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+tk.decoder = decoders.ByteLevel()
 
-trainer = BpeTrainer(
+trainer = trainers.BpeTrainer(
     vocab_size=4096,
-    special_tokens=["<pad>", "<|im_start|>", "<|im_end|>", "<unk>"],
+    special_tokens=["<pad>", "<|im_start|>", "<|im_end|>"],  # 3 ตัว ตรงกับ repo
+    min_frequency=2,
+    show_progress=True,
 )
 
 tk.train(["data/corpus.txt"], trainer)
+tk.post_processor = processors.ByteLevel(trim_offsets=False)
 tk.save("data/tokenizer.json")
 
 print(f"✅ Vocabulary size: {tk.get_vocab_size()}")
 ```
+
+> 🔑 **ByteLevel BPE ต่างจาก word-level BPE อย่างไร?** ByteLevel มองข้อความเป็นลำดับ **byte** (0–255) ก่อน จึงครอบคลุมอักขระได้ทุกตัวรวมถึงภาษาไทย อีโมจิ และช่องว่าง โดยไม่ต้องมี `<unk>` — เป็นวิธีเดียวกับที่ GPT-2 ใช้
 
 ### Cell 8 — ทดสอบ tokenizer
 
@@ -235,6 +264,7 @@ for t in tests:
 **✅ ผลลัพธ์ที่ควรสังเกต:**
 - คำที่พบบ่อยในโดเมนปลา (water, food, tank) จะเป็น token เดียว
 - คำนอกโดเมน (quantum, physics) จะถูกหั่นเป็นหลาย token
+- token ที่ขึ้นต้นด้วยช่องว่างจะมีสัญลักษณ์ `Ġ` นำหน้า (เช่น `Ġwater`) — นี่คือวิธีที่ ByteLevel BPE แทน "ช่องว่างหน้าคำ" ไม่ใช่ error
 - `decode` แล้วได้ข้อความกลับมาใกล้เคียงเดิม
 
 ---
@@ -284,16 +314,19 @@ flowchart LR
 
 ## 2.6 เตรียมข้อมูลด้วย script ของ repo
 
-แทนที่จะทำทีละขั้นเอง สามารถใช้ script สำเร็จรูป:
+แทนที่จะทำทีละขั้นเอง สามารถใช้ script สำเร็จรูป โดยเรียกแบบ **in-process** (แนวเดียวกับตอนเทรนใน Module 03):
 
 ```python
-!python -m guppylm.prepare_data
+from guppylm.prepare_data import prepare
+prepare()
 ```
 
-**สิ่งที่ script ทำ:**
-1. โหลด/สร้าง dataset
-2. เทรน BPE tokenizer (vocab 4,096)
-3. บันทึก `data/train.jsonl`, `data/test.jsonl`, `data/tokenizer.json`
+**สิ่งที่ `prepare()` ทำ:**
+1. สร้าง dataset สังเคราะห์ (`generate_dataset`)
+2. บันทึก `data/train.jsonl` และ **`data/eval.jsonl`** (ชื่อ `eval` ไม่ใช่ `test` — `train.py` โหลด `eval.jsonl` มาวัด eval loss)
+3. เทรน ByteLevel BPE tokenizer (vocab 4,096, special tokens 3 ตัว) → `data/tokenizer.json`
+
+> 💡 เรียก `prepare()` ตรง ๆ แทน `!python -m guppylm.prepare_data` เพื่อให้ทำงานในโปรเซสเดียวกับโน้ตบุ๊ก สอดคล้องกับวิธีรัน `train()` ใน Module 03
 
 ---
 
